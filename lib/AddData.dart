@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AddYourDataScreen extends StatefulWidget {
   final VoidCallback onSubmit;
@@ -15,6 +18,13 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
   List<String> symptoms = [];
   String selectedContraception = '';
 
+  @override
+  void initState() {
+    super.initState();
+    // Initialize Firebase when the screen is created
+    Firebase.initializeApp();
+  }
+
   void addSymptom() {
     final text = symptomController.text.trim();
     if (text.isNotEmpty) {
@@ -29,6 +39,21 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
     setState(() {
       selectedContraception = type;
     });
+  }
+
+  void saveData() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid ?? 'default_user_id'; // Use Firebase Authentication for dynamic user ID
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
+        'age': ageController.text,
+        'symptoms': symptoms,
+        'contraception': selectedContraception,
+      });
+      print("Data saved successfully!");
+    } catch (e) {
+      print("Error saving data: $e");
+    }
   }
 
   @override
@@ -111,9 +136,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  print('Age: ${ageController.text}');
-                  print('Symptoms: $symptoms');
-                  print('Contraception: $selectedContraception');
+                  saveData(); // Call the method to save data to Firestore
                   widget.onSubmit();
                 },
                 style: ElevatedButton.styleFrom(
@@ -154,7 +177,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
           Container(
             padding: const EdgeInsets.all(16.0),
             decoration: BoxDecoration(
-              color: isSelected ? Colors.pink.shade100 : Colors.white.withOpacity(0.8),
+              color: isSelected ? Colors.pink.shade100 : Colors.white,
               borderRadius: BorderRadius.circular(25.0),
               border: isSelected ? Border.all(color: Colors.pink, width: 2) : null,
             ),

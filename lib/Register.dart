@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegistrationScreen extends StatefulWidget {
   final VoidCallback onCreateProfile;
@@ -13,6 +15,48 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
+
+  Future<void> _registerUser() async {
+    try {
+      // Register user using FirebaseAuth
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      // Store user data in Firestore
+      User? user = userCredential.user;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'username': usernameController.text.trim(),
+          'email': emailController.text.trim(),
+          'createdAt': Timestamp.now(),
+        });
+
+        // After successful registration and data storage
+        widget.onCreateProfile();
+      }
+    } on FirebaseAuthException catch (e) {
+      // Handle errors, for instance, weak password, email already in use, etc.
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Error'),
+            content: Text(e.message ?? 'An error occurred.'),
+            actions: <Widget>[
+              TextButton(
+                child: Text('OK'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,16 +87,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   radius: 50,
                   backgroundColor: Colors.white,
                   child: Icon(
-                    Icons.person_outline,
+                    Icons.medical_information,
                     size: 60,
-                    color: Colors.black,
+                    color: Colors.amber,
                   ),
                 ),
                 const SizedBox(height: 30),
                 Container(
                   padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(15.0),
                   ),
                   child: Column(
@@ -81,13 +125,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
-                        onPressed: () {
-                          print('Username: ${usernameController.text}');
-                          print('Email: ${emailController.text}');
-                          print('Password: ${passwordController.text}');
-                          print('Confirm: ${confirmPasswordController.text}');
-                          widget.onCreateProfile();
-                        },
+                        onPressed: _registerUser,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.lightGreen,
                           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
