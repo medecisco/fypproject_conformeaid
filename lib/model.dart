@@ -4,12 +4,16 @@ class Model {
   Interpreter? _interpreter;
 
   Future<void> loadModel() async {
-    _interpreter = await Interpreter.fromAsset('C:/Users/izkan/StudioProjects/fypproject/Assets/menstrual_gru_model.pt');
+    _interpreter = await Interpreter.fromAsset('Assets/menstrual_lstm_model.tflite');
   }
 
   Future<List<dynamic>> predict(List<dynamic> input) async {
-    var output = List.filled(1, 0).reshape([1, 1]);  // Change shape as per your model's output
+    var output = List.filled(2, 0.0).reshape([1, 2]);  // Change shape as per the model's output
+
+    //run the model
     _interpreter?.run(input, output);
+
+    //return the prediction result
     return output;
   }
 }

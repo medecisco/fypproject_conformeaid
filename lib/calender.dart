@@ -15,12 +15,8 @@ class TimelineScreen extends StatefulWidget {
 class _TimelineScreenState extends State<TimelineScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
-  int _currentMonth = DateTime
-      .now()
-      .month;
-  int _currentYear = DateTime
-      .now()
-      .year;
+  int _currentMonth = DateTime.now().month;
+  int _currentYear = DateTime.now().year;
 
   List<DateTime> _predictionDates = []; // List to store prediction dates
 
@@ -44,14 +40,14 @@ class _TimelineScreenState extends State<TimelineScreen> {
           .get();
 
       if (predictionDoc.exists) {
-        Map<String, dynamic> predictionData = predictionDoc.data() as Map<
-            String,
-            dynamic>;
+        Map<String, dynamic> predictionData =
+        predictionDoc.data() as Map<String, dynamic>;
         DateTime start = DateTime.parse(predictionData['expectedStart']);
         DateTime end = DateTime.parse(predictionData['expectedEnd']);
 
         List<DateTime> days = [];
-        for (DateTime date = start; date.isBefore(end);
+        for (DateTime date = start;
+        date.isBefore(end);
         date = date.add(const Duration(days: 1))) {
           days.add(date);
         }
@@ -83,19 +79,17 @@ class _TimelineScreenState extends State<TimelineScreen> {
     );
 
     // Update Firestore with new start and end dates
-    FirebaseFirestore.instance.collection('users').doc(userId)
-        .collection('predictions').doc('nextCycle').set({
+    FirebaseFirestore.instance.collection('users').doc(userId).collection('predictions').doc('nextCycle').set({
       'expectedStart': newStart.toIso8601String(),
       'expectedEnd': newEnd.toIso8601String(),
     });
 
     // Update local prediction dates
     setState(() {
-      _predictionDates = List.generate(newEnd.difference(newStart).inDays + 1,
-              (i) => newStart.add(Duration(days: i)));
+      _predictionDates = List.generate(
+          newEnd.difference(newStart).inDays + 1, (i) => newStart.add(Duration(days: i)));
     });
   }
-
 
   Future<void> _extendPrediction({required int daysToExtend}) async {
     DateTime newEnd = _predictionDates.last.add(Duration(days: daysToExtend));
@@ -104,8 +98,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     String? userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
-    FirebaseFirestore.instance.collection('users').doc(userId)
-        .collection('predictions').doc('nextCycle').update({
+    FirebaseFirestore.instance.collection('users').doc(userId).collection('predictions').doc('nextCycle').update({
       'expectedEnd': newEnd.toIso8601String(),
     });
 
@@ -119,28 +112,27 @@ class _TimelineScreenState extends State<TimelineScreen> {
   void _showAdjustDialog() {
     showDialog(
       context: context,
-      builder: (context) =>
-          AlertDialog(
-            title: const Text("Adjust Menstruation"),
-            content: const Text("Is the menstruation status correct today?"),
-            actions: [
-              TextButton(
-                child: const Text("Didn't Start"),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _shiftPrediction(daysToShift: 1); // Shift cycle by 1 day
-                },
-              ),
-              TextButton(
-                child: const Text("Still Bleeding"),
-                onPressed: () {
-                  Navigator.pop(context);
-                  _extendPrediction(
-                      daysToExtend: 1); // Extend bleeding by 1 day
-                },
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text("Adjust Menstruation"),
+        content: const Text("Is the menstruation status correct today?"),
+        actions: [
+          TextButton(
+            child: const Text("Didn't Start"),
+            onPressed: () {
+              Navigator.pop(context);
+              _shiftPrediction(daysToShift: 1); // Shift cycle by 1 day
+            },
           ),
+          TextButton(
+            child: const Text("Still Bleeding"),
+            onPressed: () {
+              Navigator.pop(context);
+              _extendPrediction(
+                  daysToExtend: 1); // Extend bleeding by 1 day
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -154,10 +146,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
     String? userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
-    CollectionReference historyRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('history');
+    CollectionReference historyRef =
+    FirebaseFirestore.instance.collection('users').doc(userId).collection('history');
 
     await historyRef.add({
       'dateOfAction': DateTime.now().toIso8601String(),
@@ -173,6 +163,22 @@ class _TimelineScreenState extends State<TimelineScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        // BACK BUTTON
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.grey),
+          onPressed: () {
+            Navigator.pushNamed(context, '/Homepage');// This will pop the current screen
+          },
+        ),
+        title: const Text(
+          'Timeline',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -190,26 +196,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
             padding: const EdgeInsets.all(16.0),
             child: Column(
               children: [
-                // Title Bar
-                Padding(
-                  padding: const EdgeInsets.only(top: 10.0, bottom: 20.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(Icons.calendar_month, color: Color(0xFFE67A82),
-                          size: 30),
-                      SizedBox(width: 8),
-                      Text(
-                        'Timeline',
-                        style: TextStyle(
-                          color: Color(0xFFE67A82),
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // REMOVED: The custom title bar is removed from here
+                // to avoid redundancy with the new AppBar.
 
                 // Calendar Container
                 Container(
@@ -225,8 +213,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         // Date Display
                         Text(
                           DateFormat('EEE, MMM d').format(_selectedDay),
-                          style: const TextStyle(fontSize: 20,
-                              fontWeight: FontWeight.w500),
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 10),
 
@@ -239,8 +227,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                               items: List.generate(12, (index) {
                                 return DropdownMenuItem<int>(
                                   value: index + 1,
-                                  child: Text(DateFormat('MMMM').format(
-                                      DateTime(_currentYear, index + 1))),
+                                  child: Text(DateFormat('MMMM')
+                                      .format(DateTime(_currentYear, index + 1))),
                                 );
                               }),
                               onChanged: (value) {
@@ -259,9 +247,11 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            IconButton(onPressed: _goToPreviousMonth,
+                            IconButton(
+                                onPressed: _goToPreviousMonth,
                                 icon: const Icon(Icons.chevron_left)),
-                            IconButton(onPressed: _goToNextMonth,
+                            IconButton(
+                                onPressed: _goToNextMonth,
                                 icon: const Icon(Icons.chevron_right)),
                           ],
                         ),
@@ -270,36 +260,41 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 7),
                           itemCount: DateTime(
                               _currentYear, _currentMonth + 1, 0).day +
                               DateTime(_currentYear, _currentMonth, 1).weekday -
                               1,
                           itemBuilder: (context, index) {
-                            if (index < DateTime(_currentYear, _currentMonth, 1)
-                                .weekday - 1) {
+                            if (index <
+                                DateTime(_currentYear, _currentMonth, 1)
+                                    .weekday -
+                                    1) {
                               return const SizedBox(); // Empty spaces before first day
                             }
 
                             final day = index -
                                 DateTime(_currentYear, _currentMonth, 1)
-                                    .weekday + 2;
-                            final currentDate = DateTime(
-                                _currentYear, _currentMonth, day);
-                            final isPredictionDay = _predictionDates.any((
-                                date) =>
-                            date.year == currentDate.year &&
-                                date.month == currentDate.month &&
-                                date.day == currentDate.day);
+                                    .weekday +
+                                2;
+                            final currentDate =
+                            DateTime(_currentYear, _currentMonth, day);
+                            final isPredictionDay = _predictionDates.any(
+                                    (date) =>
+                                date.year == currentDate.year &&
+                                    date.month == currentDate.month &&
+                                    date.day == currentDate.day);
                             final isSelected = _selectedDay.year ==
                                 currentDate.year &&
                                 _selectedDay.month == currentDate.month &&
                                 _selectedDay.day == currentDate.day;
 
-                            final isToday = _focusedDay.year == currentDate.year &&
-                                            _focusedDay.month == currentDate.month &&
-                                            _focusedDay.day == currentDate.day;
+                            final isToday =
+                                _focusedDay.year == currentDate.year &&
+                                    _focusedDay.month == currentDate.month &&
+                                    _focusedDay.day == currentDate.day;
 
                             return GestureDetector(
                               onTap: () {
@@ -329,8 +324,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                             : Colors.black,
                                       ),
                                     ),
-
-
                                     if (isPredictionDay)
                                       Positioned(
                                         bottom: 2,
@@ -343,8 +336,6 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                           ),
                                         ),
                                       ),
-
-
                                     // anchor for today's date
                                     if (isToday)
                                       Container(
@@ -356,13 +347,12 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                         ),
                                       ),
                                     Text(day.toString(),
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : Colors.black,
-                                    ),
-                                    ),
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : Colors.black,
+                                        )),
                                   ],
                                 ),
                               ),
@@ -395,45 +385,40 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   onPressed: _showAdjustDialog,
                   child: const Text('Adjust Menstruation'),
                 ),
-
-                // Bottom Navigation Bar
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.calendar_month),
-                            onPressed: () {
-                              // You are already on Timeline
-                            },
-                          ),
-                          const Text('Timeline'),
-                        ],
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.notification_add_sharp),
-                            onPressed: widget.onNavigateToReminder,
-                          ),
-                          const Text('Reminder'),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
+        ),
+      ),
+      // Bottom Navigation Bar
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: <Widget>[
+            // Timeline button (now TextButton.icon)
+            TextButton.icon(
+              onPressed: () {
+                // You are already on Timeline, so this is just a visual indicator
+              },
+              icon: const Icon(Icons.calendar_month),
+              label: const Text('Timeline'),
+              style: TextButton.styleFrom(
+                  foregroundColor: Colors.pink.shade200), // Active color
+            ),
+            // Reminder button (now TextButton.icon)
+            TextButton.icon(
+              onPressed: widget.onNavigateToReminder,
+              icon: const Icon(Icons.notifications), // Changed to solid bell
+              label: const Text('Reminder'),
+              style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey), // Inactive color
+            ),
+          ],
         ),
       ),
     );

@@ -1,34 +1,49 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // For Firebase integration
-import 'package:google_fonts/google_fonts.dart';// for Google Fonts
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'LogIn.dart';
+import 'settings_page.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyHomeScreen extends StatelessWidget {
-  const MyHomeScreen({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Homepage',
+      title: 'ConformeAid',
       theme: ThemeData(
-        fontFamily: GoogleFonts.inter().fontFamily, // Define the main font using Google Fonts
-        primarySwatch: Colors.blue, // Customize as needed
+        fontFamily: GoogleFonts.inter().fontFamily,
+        primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const MyHomeScreen(),
+      initialRoute: '/LogIn',
+      routes: {
+        '/LogIn': (context) => LoginScreen(
+          onSubmit: () => Navigator.pushNamed(context, '/Homepage'),
+          onNewUser: () => Navigator.pushNamed(context, '/Register'),
+        ),
+        '/Homepage': (context) => const HomeScreen(
+          onNavigateToTimeline: null,
+          onNavigateToReminder: null,
+          onNavigateToProfile: null,
+        ),
+        '/Settings': (context) => const SettingsPage(),
+      },
     );
   }
 }
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     required this.onNavigateToTimeline,
@@ -36,56 +51,74 @@ class HomeScreen extends StatelessWidget {
     required this.onNavigateToProfile,
   });
 
-  final void Function() onNavigateToTimeline;
-  final void Function() onNavigateToReminder;
-  final void Function() onNavigateToProfile;
+  final void Function()? onNavigateToTimeline;
+  final void Function()? onNavigateToReminder;
+  final void Function()? onNavigateToProfile;
+
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _boldText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBoldTextSetting();
+  }
+
+  Future<void> _loadBoldTextSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    final bold = prefs.getBool('boldText') ?? false;
+    setState(() {
+      _boldText = bold;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Define reusable colors and styles
     const Color primaryColor = Color(0xFFF5C75E);
-    const TextStyle titleTextStyle = TextStyle(
-      fontSize: 24,
-      fontWeight: FontWeight.bold,
-      color: Colors.black87,
-    );
     const TextStyle bodyTextStyle = TextStyle(
       fontSize: 16,
       color: Colors.black54,
     );
 
-    // Define grid items with appropriate navigation actions
     final List<Map<String, dynamic>> gridItems = [
       {
         'title': 'Timeline',
-        'icon': Icons.calendar_month, // Using MaterialApp Icons
-        'onTap': onNavigateToTimeline, // Navigate to Timeline
+        'icon': Icons.calendar_month,
+        'onTap': widget.onNavigateToTimeline,
       },
       {
         'title': 'Reminder',
-        'icon': Icons.alarm, // Using MaterialApp Icons
-        'onTap': onNavigateToReminder, // Navigate to Reminder
+        'icon': Icons.alarm,
+        'onTap': widget.onNavigateToReminder,
       },
       {
         'title': 'Profile',
-        'icon': Icons.medical_information, // Using MaterialApp Icons
-        'onTap': onNavigateToProfile, // Navigate to Profile
+        'icon': Icons.medical_information,
+        'onTap': widget.onNavigateToProfile,
       },
     ];
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
-        elevation: 0, // Remove shadow
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black87),
-          onPressed: () {
-            // Handle menu button press
+          icon: const Icon(Icons.logout_rounded, color: Colors.black87),
+          onPressed: () async {
+            await FirebaseAuth.instance.signOut();
+            SystemNavigator.pop();
           },
         ),
-        title: const Text(
+        title: Text(
           "Conforme Aid",
-          style: TextStyle(color: Colors.black87),
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: _boldText ? FontWeight.bold : FontWeight.normal,
+          ),
         ),
         centerTitle: true,
       ),
@@ -97,7 +130,7 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               const SizedBox(height: 20),
-              const Text('What do you want to learn today?', style: bodyTextStyle),
+              const Text('What do you want to check today?', style: bodyTextStyle),
               const SizedBox(height: 20),
               GridView.builder(
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -127,17 +160,17 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ],
                     ),
+
                   );
                 },
               ),
-
-              // Menstrual Data Display (Show days until next period)
+              const SizedBox(height: 20),
               const Text(
                 "Next Menstrual Cycle",
-                style: titleTextStyle,
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
               ),
               const SizedBox(height: 10),
-              const MenstrualDataDisplay(), // Custom widget to fetch and display data
+              const MenstrualAndPredictionDataDisplay(), // Consolidated widget
             ],
           ),
         ),
@@ -157,107 +190,173 @@ class HomeScreen extends StatelessWidget {
         unselectedItemColor: Colors.grey,
         currentIndex: 0,
         onTap: (index) {
-          // Handle bottom navigation item taps
+          if (index == 1) {
+            Navigator.pushNamed(context, '/Settings');
+          }
         },
       ),
     );
   }
 }
 
-class MenstrualDataDisplay extends StatefulWidget {
-  const MenstrualDataDisplay({super.key});
+class MenstrualAndPredictionDataDisplay extends StatefulWidget {
+  const MenstrualAndPredictionDataDisplay({super.key});
 
   @override
-  _MenstrualDataDisplayState createState() => _MenstrualDataDisplayState();
+  _MenstrualAndPredictionDataDisplayState createState() =>
+      _MenstrualAndPredictionDataDisplayState();
 }
 
-class _MenstrualDataDisplayState extends State<MenstrualDataDisplay> {
-  String? userId;
+class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredictionDataDisplay> {
+  DateTime? predictedStartDate;
+  DateTime? predictedEndDate;
   DateTime? nextPeriod;
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId != null) {
-      _fetchMenstrualData();
-    }
+    _fetchData();
   }
 
-  // Fetch menstrual data from Firestore
-  Future<void> _fetchMenstrualData() async {
-    try {
-      DocumentSnapshot snapshot = await FirebaseFirestore.instance
-          .collection('menstrual_data')
-          .doc(userId)
-          .get();
+  Future<void> _fetchData() async {
+    String? userId = FirebaseAuth.instance.currentUser?.uid;
 
-      if (snapshot.exists) {
-        setState(() {
-          nextPeriod = snapshot['nextPeriod']?.toDate(); // Convert to DateTime
-          isLoading = false;
-        });
-      } else {
+    if (userId != null) {
+      try {
+        DocumentSnapshot menstrualSnapshot = await FirebaseFirestore.instance
+            .collection('menstrual_data')
+            .doc(userId)
+            .get();
+
+        DocumentSnapshot predictionSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .collection('predictions')
+            .doc('nextCycle')
+            .get();
+
+        if (menstrualSnapshot.exists) {
+          nextPeriod = menstrualSnapshot['nextPeriod']?.toDate();
+        }
+
+        if (predictionSnapshot.exists) {
+          predictedStartDate = DateTime.parse(predictionSnapshot['expectedStart']);
+          predictedEndDate = DateTime.parse(predictionSnapshot['expectedEnd']);
+        }
+      } catch (e) {
+        print('Error fetching data: $e');
+      } finally {
         setState(() {
           isLoading = false;
         });
       }
-    } catch (e) {
-      // Handle error
+    } else {
       setState(() {
         isLoading = false;
       });
-      print("Error fetching menstrual data: $e");
     }
   }
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const CircularProgressIndicator();
+      return const Center(child: CircularProgressIndicator());
     }
 
-    if (nextPeriod == null) {
-      return const Text("No menstrual data available.");
+    if (nextPeriod == null && predictedStartDate == null) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.redAccent.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Text(
+          "No menstrual or prediction data available.",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.red,
+          ),
+        ),
+      );
     }
 
-    // Calculate days until the next period
-    final daysUntilNextPeriod = nextPeriod!.difference(DateTime.now()).inDays;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey,
-            spreadRadius: 2,
-            blurRadius: 4,
-            offset: const Offset(0, 3),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (nextPeriod != null) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFFF5C75E),
+                  Color(0xFFE67A82),
+                ],
+                stops: [0.3, 0.7],
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Your next period is in:",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "${nextPeriod!.difference(DateTime.now()).inDays} days",
+                  style: const TextStyle(fontSize: 20, color: Colors.white),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Date: ${nextPeriod!.toLocal().day}-${nextPeriod!.toLocal().month}-${nextPeriod!.toLocal().year}",
+                  style: const TextStyle(fontSize: 16, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        if (predictedStartDate != null && predictedEndDate != null) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.blueAccent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Predicted Start of next period:",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  predictedStartDate!.toLocal().toString().split(' ')[0], // Display only date
+                  style: const TextStyle(fontSize: 20, color: Colors.blue),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Predicted End of next period:",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  predictedEndDate!.toLocal().toString().split(' ')[0], // Display only date
+                  style: const TextStyle(fontSize: 20, color: Colors.blue),
+                ),
+              ],
+            ),
           ),
         ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "Your next period is in:",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "$daysUntilNextPeriod days",
-            style: const TextStyle(fontSize: 20, color: Colors.blue),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Date: ${nextPeriod!.toLocal().day}-${nextPeriod!.toLocal().month}-${nextPeriod!.toLocal().year}",
-            style: const TextStyle(fontSize: 16),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }

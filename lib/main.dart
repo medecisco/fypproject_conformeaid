@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'AddData.dart';
 import 'Homepage.dart';
@@ -9,6 +8,8 @@ import 'ManageReminder.dart';
 import 'Register.dart';
 import 'calender.dart';
 import 'model.dart'; // Import the model.dart file
+import 'settings_page.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +26,7 @@ class ConformeAidApp extends StatefulWidget {
 }
 
 class _ConformeAidAppState extends State<ConformeAidApp> {
-  Model _model = Model();  // Create an instance of your model
+  final Model _model = Model();  // Create an instance of your model
 
   @override
   void initState() {
@@ -58,7 +59,7 @@ class _ConformeAidAppState extends State<ConformeAidApp> {
           onNavigateToProfile: () => Navigator.pushNamed(context, '/AddData'),
         ),
         '/Register': (context) => RegistrationScreen(
-          onCreateProfile: () => Navigator.pushNamed(context, '/AddData'),
+          onCreateProfile: () => Navigator.pushNamed(context, '/LogIn'),
         ),
         '/AddData': (context) => AddYourDataScreen(
           onSubmit: () => Navigator.pushNamed(context, '/calendar'),
@@ -69,6 +70,7 @@ class _ConformeAidAppState extends State<ConformeAidApp> {
         '/ManageReminder': (context) => ManageReminderScreen(
           onNavigateToTimeline: () => Navigator.pushNamed(context, '/calendar'),
         ),
+        '/Settings': (context) => SettingsPage(),
       },
     );
   }

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:timezone/timezone.dart' as tz;
+import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class ManageReminderScreen extends StatefulWidget {
   final VoidCallback onNavigateToTimeline;
+
   const ManageReminderScreen({super.key, required this.onNavigateToTimeline});
 
   @override
@@ -15,12 +16,8 @@ class ManageReminderScreen extends StatefulWidget {
 }
 
 class _ManageReminderScreenState extends State<ManageReminderScreen> {
-  TimeOfDay reminderTime = const TimeOfDay(hour: 8, minute: 0);
-  bool isReminderOn = true;
-  bool isAutoReminderActive = false; // To track whether automatic reminder is activated
-  bool alignWithCycle = false; // Whether the reminder should align with the cycle data
-  DateTime? cycleStartDate;  // Store the predicted cycle start date
-  int collectedDataMonths = 0; // Track months of collected menstruation data
+  TimeOfDay reminderTime = TimeOfDay.now();
+  bool isReminderEnabled = false;
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
   FlutterLocalNotificationsPlugin();
@@ -28,113 +25,113 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
   @override
   void initState() {
     super.initState();
+    _loadReminderSettings();
     _initializeNotifications();
-    _getReminderData();  // Fetch the reminder data from Firestore when the app starts
   }
 
-  Future<void> _initializeNotifications() async {
-    const AndroidInitializationSettings androidSettings =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const InitializationSettings initSettings = InitializationSettings(
-      android: androidSettings,
-    );
-
-    await flutterLocalNotificationsPlugin.initialize(initSettings);
+  void _initializeNotifications() {
     tz.initializeTimeZones();
-
-    // Set up notification channels (required for Android 8.0 and above)
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'reminder_channel', // id
-      'Reminders', // name
-      description: 'This channel is used for reminder notifications',
-      importance: Importance.high,
-    );
-    await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+    final AndroidInitializationSettings initializationSettingsAndroid =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+    final InitializationSettings initializationSettings =
+    InitializationSettings(android: initializationSettingsAndroid);
+    flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  // Fetch reminder data from Firestore
-  Future<void> _getReminderData() async {
+  Future<void> _loadReminderSettings() async {
     String? userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
 
-    if (userId != null) {
-      FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get()
-          .then((doc) {
-        if (doc.exists) {
-          final data = doc.data()!;
-          setState(() {
-            isReminderOn = data['isReminderOn'] ?? true;
-            reminderTime = TimeOfDay(hour: data['reminderTimeHour'], minute: data['reminderTimeMinute']);
-            alignWithCycle = data['alignWithCycle'] ?? false;
-            isAutoReminderActive = data['isAutoReminderActive'] ?? false;
-            collectedDataMonths = data['collectedDataMonths'] ?? 0;
-          });
+    DocumentSnapshot doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('settings')
+        .doc('reminder')
+        .get();
+
+    if (doc.exists) {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      setState(() {
+        isReminderEnabled = data['enabled'] ?? false;
+        if (data['hour'] != null && data['minute'] != null) {
+          reminderTime = TimeOfDay(
+              hour: data['hour'], minute: data['minute']);
         }
       });
     }
   }
 
-  // Store reminder data in Firestore
-  Future<void> _storeReminderData() async {
+  Future<void> _saveReminderSettings() async {
     String? userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
 
-    if (userId != null) {
-      FirebaseFirestore.instance.collection('users').doc(userId).set({
-        'isReminderOn': isReminderOn,
-        'reminderTimeHour': reminderTime.hour,
-        'reminderTimeMinute': reminderTime.minute,
-        'alignWithCycle': alignWithCycle,
-        'isAutoReminderActive': isAutoReminderActive,
-        'collectedDataMonths': collectedDataMonths,
-      });
-    }
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .collection('settings')
+        .doc('reminder')
+        .set({
+      'enabled': isReminderEnabled,
+      'hour': reminderTime.hour,
+      'minute': reminderTime.minute,
+    });
   }
 
-  Future<void> _scheduleMenstrualCycleReminder(DateTime cycleStartDate) async {
-    // Automatically adjust the reminder schedule based on the collected data (10 months)
-    DateTime nextReminder = cycleStartDate.add(Duration(days: 5)); // Adjust based on prediction
-    final tzTime = tz.TZDateTime.from(nextReminder, tz.local);
+  Future<void> _scheduleNotification() async {
+    await flutterLocalNotificationsPlugin.cancelAll(); // Cancel existing
+
+    if (!isReminderEnabled) return;
+
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      reminderTime.hour,
+      reminderTime.minute,
+    );
+
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+    AndroidNotificationDetails(
+      'daily_reminder_channel',
+      'Daily Menstruation Reminder',
+      channelDescription: 'Reminds you about your menstruation cycle daily',
+      importance: Importance.max,
+      priority: Priority.high,
+      ticker: 'ticker',
+    );
+    const NotificationDetails platformChannelSpecifics =
+    NotificationDetails(android: androidPlatformChannelSpecifics);
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      0,
-      'Contraceptive Reminder',
-      'Time to take your contraceptive!',
-      tzTime,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'reminder_channel', // Channel ID
-          'Reminders', // Channel Name
-          priority: Priority.high,
-          importance: Importance.high,
-          ticker: 'ticker',
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exact,
-      matchDateTimeComponents: DateTimeComponents.time, // Schedule based on time
+      0, // Notification ID
+      'Menstruation Reminder',
+      'It\'s time to check your menstruation status!',
+      scheduledDate,
+      platformChannelSpecifics,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
-  Future<void> _cancelReminder() async {
-    await flutterLocalNotificationsPlugin.cancel(0);
-  }
-
-  // Check if the system has collected 10 months of data and if the user has agreed to activate auto reminders
-  void checkAndActivateAutoReminder() {
-    if (collectedDataMonths >= 10 && isAutoReminderActive) {
-      // Trigger automatic reminder after collecting enough data
-      if (cycleStartDate != null) {
-        _scheduleMenstrualCycleReminder(cycleStartDate!);
-      }
+  void _toggleReminder(bool value) {
+    setState(() {
+      isReminderEnabled = value;
+    });
+    _saveReminderSettings();
+    if (isReminderEnabled) {
+      _scheduleNotification();
+    } else {
+      flutterLocalNotificationsPlugin.cancelAll();
     }
   }
 
-  void pickReminderTime() async {
+  Future<void> _selectTime() async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: reminderTime,
@@ -143,75 +140,10 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
       setState(() {
         reminderTime = picked;
       });
-      if (isReminderOn) {
-        _scheduleDailyReminder(picked);
+      _saveReminderSettings();
+      if (isReminderEnabled) {
+        _scheduleNotification();
       }
-    }
-  }
-
-  Future<void> _scheduleDailyReminder(TimeOfDay time) async {
-    final now = DateTime.now();
-    final scheduledDate =
-    DateTime(now.year, now.month, now.day, time.hour, time.minute);
-    final tzTime = tz.TZDateTime.from(
-      scheduledDate.isBefore(now)
-          ? scheduledDate.add(const Duration(days: 1))
-          : scheduledDate,
-      tz.local,
-    );
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      0,
-      'ConformeAid Reminder',
-      'Time to take your contraceptive!',
-      tzTime,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'reminder_channel', // Channel ID
-          'Reminders', // Channel Name
-          priority: Priority.high,
-          importance: Importance.high,
-          ticker: 'ticker',
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exact,
-      matchDateTimeComponents: DateTimeComponents.time, // Schedule based on time
-    );
-  }
-
-  void handleDeleteReminder() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Delete Reminder"),
-        content: const Text("Are you sure you want to delete this reminder?"),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                isReminderOn = false;
-              });
-              _cancelReminder();
-              Navigator.pop(ctx);
-              _storeReminderData(); // Save the changes to Firestore
-            },
-            child: const Text("Delete", style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Update cycle start date and set the reminder
-  void updateCycleStartDate(DateTime newCycleStartDate) {
-    setState(() {
-      cycleStartDate = newCycleStartDate;
-    });
-
-    if (isReminderOn && cycleStartDate != null) {
-      _scheduleMenstrualCycleReminder(cycleStartDate!);
-      _storeReminderData(); // Save the changes to Firestore
     }
   }
 
@@ -221,25 +153,32 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: const BackButton(),
-        title: const Text('Manage reminder'),
-        backgroundColor: Colors.orange.shade200,
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 16.0),
-            child: Icon(Icons.notifications_none),
-          ),
-        ],
+        backgroundColor: Colors.white,
+        elevation: 0,
+        // BACK BUTTON
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.grey),
+          onPressed: () {
+            // Navigate to '/Homepage'
+            Navigator.pushNamed(context, '/Homepage');
+          },
+        ),
+        title: const Text(
+          'Reminder',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.orange.shade200,
-              Colors.red.shade300,
+              Color(0xFFF5C75E),
+              Color(0xFFE67A82),
             ],
+            stops: [0.3, 0.7],
           ),
         ),
         child: Center(
@@ -248,84 +187,51 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text(
-                  'Reminder',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black54,
-                  ),
-                ),
-                const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(15.0),
+                    borderRadius: BorderRadius.circular(20),
                   ),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
-                    children: <Widget>[
+                    children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                            children: const [
                               Text(
-                                timeLabel,
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                                'Daily Reminders',
+                                style: TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold),
                               ),
-                              const Text(
-                                'ring once | take pill',
-                                style: TextStyle(color: Colors.grey),
-                              ),
+                              SizedBox(height: 4),
+                              Text('Reminders to check your status'),
                             ],
                           ),
                           Switch(
-                            value: isReminderOn,
-                            onChanged: (value) {
-                              setState(() {
-                                isReminderOn = value;
-                              });
-                              if (value) {
-                                _scheduleDailyReminder(reminderTime);
-                              } else {
-                                _cancelReminder();
-                              }
-                              _storeReminderData(); // Save reminder data to Firestore
-                            },
+                            value: isReminderEnabled,
+                            onChanged: _toggleReminder,
+                            activeColor: Colors.pink.shade200,
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const Divider(height: 30, thickness: 1),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          ElevatedButton.icon(
-                            onPressed: pickReminderTime,
-                            icon: const Icon(Icons.edit_calendar, color: Colors.white),
-                            label: const Text('EDIT', style: TextStyle(color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.lightGreen,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30.0),
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                            ),
+                          const Text(
+                            'Time',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
                           ),
-                          ElevatedButton.icon(
-                            onPressed: handleDeleteReminder,
-                            icon: const Icon(Icons.delete, color: Colors.white),
-                            label: const Text('DELETE', style: TextStyle(color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red.shade400,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30.0),
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                          TextButton(
+                            onPressed: _selectTime,
+                            child: Text(
+                              timeLabel,
+                              style: TextStyle(
+                                  fontSize: 18, color: Colors.pink.shade200),
                             ),
                           ),
                         ],
@@ -333,55 +239,35 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                Align(
-                  alignment: Alignment.center,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      DateTime newCycleStartDate = DateTime.now().add(Duration(days: 3));  // Example: adjust for real data
-                      updateCycleStartDate(newCycleStartDate); // Update reminder based on cycle prediction
-                    },
-                    icon: const Icon(Icons.notification_add_sharp, color: Colors.white),
-                    label: const Text('ADD REMINDER', style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.lightBlue.shade300,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                    ),
-                  ),
-                ),
                 const Spacer(),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30.0),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: <Widget>[
-                        TextButton.icon(
-                          onPressed: widget.onNavigateToTimeline,
-                          icon: const Icon(Icons.calendar_month),
-                          label: const Text('Timeline'),
-                          style: TextButton.styleFrom(foregroundColor: Colors.grey),
-                        ),
-                        TextButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.notifications),
-                          label: const Text('Reminder'),
-                          style: TextButton.styleFrom(foregroundColor: Colors.pink.shade200),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: <Widget>[
+            TextButton.icon(
+              onPressed: widget.onNavigateToTimeline,
+              icon: const Icon(Icons.calendar_month),
+              label: const Text('Timeline'),
+              style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            ),
+            TextButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.notifications),
+              label: const Text('Reminder'),
+              style: TextButton.styleFrom(
+                  foregroundColor: Colors.pink.shade200), // Active color
+            ),
+          ],
         ),
       ),
     );
