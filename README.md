@@ -8,4 +8,4 @@ aim:- trying to get the model to personalize with users data to further improve 
 
 ## Getting Started
 
-bertindak segera (*-*)b
+bertindak segera (-_-)b
