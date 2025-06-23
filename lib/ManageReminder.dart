@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ManageReminderScreen extends StatefulWidget {
   final VoidCallback onNavigateToTimeline;
@@ -18,6 +19,8 @@ class ManageReminderScreen extends StatefulWidget {
 class _ManageReminderScreenState extends State<ManageReminderScreen> {
   TimeOfDay reminderTime = TimeOfDay.now();
   bool isReminderEnabled = false;
+  bool _boldText = false;
+  double _fontSizeScale = 1.0;
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
   FlutterLocalNotificationsPlugin();
@@ -25,6 +28,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
   @override
   void initState() {
     super.initState();
+    _loadSettings();
     _loadReminderSettings();
     _initializeNotifications();
   }
@@ -36,6 +40,14 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
     final InitializationSettings initializationSettings =
     InitializationSettings(android: initializationSettingsAndroid);
     flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _boldText = prefs.getBool('boldText') ?? false;
+      _fontSizeScale = prefs.getDouble('fontSizeScale') ?? 1.0;
+    });
   }
 
   Future<void> _loadReminderSettings() async {
@@ -163,9 +175,9 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
             Navigator.pushNamed(context, '/Homepage');
           },
         ),
-        title: const Text(
+        title:  Text(
           'Reminder',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.black, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal, fontSize: 20 * _fontSizeScale,),
         ),
         centerTitle: true,
       ),
@@ -200,14 +212,14 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
                         children: [
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children:  [
                               Text(
                                 'Daily Reminders',
                                 style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
+                                    fontSize: 18 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal),
                               ),
                               SizedBox(height: 4),
-                              Text('Reminders to check your status'),
+                              Text('Reminders to check your status', style: TextStyle(fontSize: 14 * _fontSizeScale),),
                             ],
                           ),
                           Switch(
@@ -221,17 +233,17 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                         Text(
                             'Time',
                             style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                                fontSize: 18 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal),
                           ),
                           TextButton(
                             onPressed: _selectTime,
                             child: Text(
                               timeLabel,
                               style: TextStyle(
-                                  fontSize: 18, color: Colors.pink.shade200),
+                                  fontSize: 18 * _fontSizeScale, color: Colors.pink.shade200),
                             ),
                           ),
                         ],
@@ -256,14 +268,14 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
           children: <Widget>[
             TextButton.icon(
               onPressed: widget.onNavigateToTimeline,
-              icon: const Icon(Icons.calendar_month),
-              label: const Text('Timeline'),
+              icon:  Icon(Icons.calendar_month, size: 24 * _fontSizeScale,),
+              label:  Text('Timeline', style: TextStyle(fontSize: 14 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal),),
               style: TextButton.styleFrom(foregroundColor: Colors.grey),
             ),
             TextButton.icon(
               onPressed: () {},
-              icon: const Icon(Icons.notifications),
-              label: const Text('Reminder'),
+              icon:  Icon(Icons.notifications, size: 24 * _fontSizeScale,),
+              label: Text('Reminder', style: TextStyle(fontSize: 14 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal),),
               style: TextButton.styleFrom(
                   foregroundColor: Colors.pink.shade200), // Active color
             ),

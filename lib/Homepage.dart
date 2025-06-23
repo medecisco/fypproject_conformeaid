@@ -7,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'LogIn.dart';
 import 'settings_page.dart';
+import 'calender.dart';
+import 'ManageReminder.dart';
+import 'AddData.dart';
 
 void main() {
   runApp(const MyApp());
@@ -38,6 +41,9 @@ class MyApp extends StatelessWidget {
           onNavigateToProfile: null,
         ),
         '/Settings': (context) => const SettingsPage(),
+        '/calender': (context) => TimelineScreen(onNavigateToReminder: () {  },),
+        '/ManageReminder': (context) => ManageReminderScreen(onNavigateToTimeline: () {  },),
+        '/AddData': (context) => AddYourDataScreen(onSubmit: () {  },),
       },
     );
   }
@@ -70,9 +76,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadBoldTextSetting() async {
     final prefs = await SharedPreferences.getInstance();
-    final bold = prefs.getBool('boldText') ?? false;
     setState(() {
-      _boldText = bold;
+      _boldText = prefs.getBool('boldText') ?? false;
     });
   }
 
@@ -93,12 +98,16 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Reminder',
         'icon': Icons.alarm,
-        'onTap': widget.onNavigateToReminder,
+        'onTap': () async {
+          await Navigator.pushNamed(context, '/ManageReminder');
+        }
       },
       {
         'title': 'Profile',
         'icon': Icons.medical_information,
-        'onTap': widget.onNavigateToProfile,
+        'onTap': () async {
+          await Navigator.pushNamed(context, '/AddData');
+        }
       },
     ];
 
@@ -189,9 +198,10 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedItemColor: primaryColor,
         unselectedItemColor: Colors.grey,
         currentIndex: 0,
-        onTap: (index) {
+        onTap: (index) async {
           if (index == 1) {
-            Navigator.pushNamed(context, '/Settings');
+           await Navigator.pushNamed(context, '/Settings');
+           _loadBoldTextSetting();
           }
         },
       ),

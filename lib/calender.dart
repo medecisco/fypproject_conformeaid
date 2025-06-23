@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TimelineScreen extends StatefulWidget {
   final VoidCallback onNavigateToReminder;
@@ -20,10 +21,22 @@ class _TimelineScreenState extends State<TimelineScreen> {
 
   List<DateTime> _predictionDates = []; // List to store prediction dates
 
+  bool _boldText = false;
+  double _fontSizeScale = 1.0;
+
   @override
   void initState() {
     super.initState(); // initiate the firestore to fetch data from firestore
+    _loadSettings();
     _fetchPredictions();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _boldText = prefs.getBool('boldText') ?? false;
+      _fontSizeScale = prefs.getDouble('fontSizeScale') ?? 1.0;
+    });
   }
 
   Future<void> _fetchPredictions() async {
@@ -113,18 +126,26 @@ class _TimelineScreenState extends State<TimelineScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Adjust Menstruation"),
-        content: const Text("Is the menstruation status correct today?"),
+        title:  Text("Adjust Menstruation",
+        style: TextStyle(
+          fontWeight: _boldText ? FontWeight.bold : FontWeight.normal,
+          fontSize: 20 * _fontSizeScale,
+        ),
+        ),
+        content: Text("Is the menstruation status correct today?",
+        style: TextStyle(fontSize: 16 * _fontSizeScale),),
         actions: [
           TextButton(
-            child: const Text("Didn't Start"),
+            child:  Text("Didn't Start",
+                    style: TextStyle(fontSize: 16 * _fontSizeScale),),
             onPressed: () {
               Navigator.pop(context);
               _shiftPrediction(daysToShift: 1); // Shift cycle by 1 day
             },
           ),
           TextButton(
-            child: const Text("Still Bleeding"),
+            child: Text("Still Bleeding",
+              style: TextStyle(fontSize: 16 * _fontSizeScale),),
             onPressed: () {
               Navigator.pop(context);
               _extendPrediction(
@@ -173,9 +194,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
             Navigator.pushNamed(context, '/Homepage');// This will pop the current screen
           },
         ),
-        title: const Text(
+        title: Text(
           'Timeline',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.black, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal, fontSize: 20 * _fontSizeScale),
         ),
         centerTitle: true,
       ),
@@ -213,8 +234,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         // Date Display
                         Text(
                           DateFormat('EEE, MMM d').format(_selectedDay),
-                          style: const TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.w500),
+                          style:  TextStyle(
+                              fontSize: 20 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold: FontWeight.w500),
                         ),
                         const SizedBox(height: 10),
 
@@ -241,7 +262,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                 });
                               },
                             ),
-                            Text(_currentYear.toString()),
+                            Text(_currentYear.toString(),
+                            style: TextStyle(fontSize: 14 * _fontSizeScale),),
                           ],
                         ),
                         Row(
@@ -249,10 +271,10 @@ class _TimelineScreenState extends State<TimelineScreen> {
                           children: [
                             IconButton(
                                 onPressed: _goToPreviousMonth,
-                                icon: const Icon(Icons.chevron_left)),
+                                icon:  Icon(Icons.chevron_left, size: 24 * _fontSizeScale,)),
                             IconButton(
                                 onPressed: _goToNextMonth,
-                                icon: const Icon(Icons.chevron_right)),
+                                icon:  Icon(Icons.chevron_right, size: 24 * _fontSizeScale,)),
                           ],
                         ),
 
@@ -308,8 +330,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                   children: [
                                     if (isSelected)
                                       Container(
-                                        width: 35,
-                                        height: 35,
+                                        width: 35 * _fontSizeScale,
+                                        height: 35 * _fontSizeScale,
                                         decoration: BoxDecoration(
                                           color: Colors.deepPurple.shade400,
                                           shape: BoxShape.circle,
@@ -318,7 +340,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                     Text(
                                       day.toString(),
                                       style: TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 16 * _fontSizeScale,
                                         color: isSelected
                                             ? Colors.white
                                             : Colors.black,
@@ -328,8 +350,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                       Positioned(
                                         bottom: 2,
                                         child: Container(
-                                          width: 6,
-                                          height: 6,
+                                          width: 6 * _fontSizeScale,
+                                          height: 6 * _fontSizeScale,
                                           decoration: const BoxDecoration(
                                             color: Colors.red,
                                             shape: BoxShape.circle,
@@ -339,8 +361,8 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                     // anchor for today's date
                                     if (isToday)
                                       Container(
-                                        width: 35,
-                                        height: 35,
+                                        width: 35 * _fontSizeScale,
+                                        height: 35 * _fontSizeScale,
                                         decoration: BoxDecoration(
                                           color: Colors.blue.shade600,
                                           shape: BoxShape.circle,
@@ -348,7 +370,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                       ),
                                     Text(day.toString(),
                                         style: TextStyle(
-                                          fontSize: 16,
+                                          fontSize: 16 * _fontSizeScale,
                                           color: isSelected
                                               ? Colors.white
                                               : Colors.black,
@@ -363,14 +385,14 @@ class _TimelineScreenState extends State<TimelineScreen> {
                         // Day Names Row
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: const [
-                            Text("S"),
-                            Text("M"),
-                            Text("T"),
-                            Text("W"),
-                            Text("T"),
-                            Text("F"),
-                            Text("S")
+                          children:  [
+                            Text("S", style: TextStyle(fontSize: 14 * _fontSizeScale)),
+                            Text("M", style: TextStyle(fontSize: 14 * _fontSizeScale)),
+                            Text("T", style: TextStyle(fontSize: 14 * _fontSizeScale)),
+                            Text("W", style: TextStyle(fontSize: 14 * _fontSizeScale)),
+                            Text("T", style: TextStyle(fontSize: 14 * _fontSizeScale)),
+                            Text("F", style: TextStyle(fontSize: 14 * _fontSizeScale)),
+                            Text("S", style: TextStyle(fontSize: 14 * _fontSizeScale))
                           ],
                         ),
                       ],
@@ -383,7 +405,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                 // Adjust Menstruation Button
                 ElevatedButton(
                   onPressed: _showAdjustDialog,
-                  child: const Text('Adjust Menstruation'),
+                  child:  Text('Adjust Menstruation', style: TextStyle(fontSize: 16 * _fontSizeScale)),
                 ),
               ],
             ),
@@ -405,16 +427,16 @@ class _TimelineScreenState extends State<TimelineScreen> {
               onPressed: () {
                 // You are already on Timeline, so this is just a visual indicator
               },
-              icon: const Icon(Icons.calendar_month),
-              label: const Text('Timeline'),
+              icon:  Icon(Icons.calendar_month, size: 24 * _fontSizeScale,),
+              label:  Text('Timeline', style: TextStyle(fontWeight: _boldText ? FontWeight.bold : FontWeight.normal, fontSize: 14 * _fontSizeScale)),
               style: TextButton.styleFrom(
                   foregroundColor: Colors.pink.shade200), // Active color
             ),
             // Reminder button (now TextButton.icon)
             TextButton.icon(
               onPressed: widget.onNavigateToReminder,
-              icon: const Icon(Icons.notifications), // Changed to solid bell
-              label: const Text('Reminder'),
+              icon:  Icon(Icons.notifications, size: 24 * _fontSizeScale,), // Changed to solid bell
+              label: Text('Reminder', style: TextStyle(fontWeight: _boldText ? FontWeight.bold : FontWeight.normal, fontSize: 14 * _fontSizeScale)),
               style: TextButton.styleFrom(
                   foregroundColor: Colors.grey), // Inactive color
             ),

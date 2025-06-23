@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AddYourDataScreen extends StatefulWidget {
   final VoidCallback onSubmit;
@@ -45,9 +46,13 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
     'Difficulty concentrating',
   ];
 
+  bool _boldText = false;
+  double _fontSizeScale = 1.0;
+
   @override
   void initState() {
     super.initState();
+    _loadSettings();
   }
 
   // addSymptom() method is no longer needed
@@ -65,6 +70,15 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
     }
     final userId = FirebaseAuth.instance.currentUser?.uid ?? 'default_user_id'; // Fallback for testing
 
+    if (userId == null) {
+      // User is not logged in. Show an error or prompt to log in.
+      print("Error saving data: User not authenticated.");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: Please log in to save your data.')),
+      );
+      return; // Stop execution if user is not authenticated
+    }
+
     try {
       await FirebaseFirestore.instance.collection('users').doc(userId).set({
         'age': ageController.text.isNotEmpty ? int.parse(ageController.text) : null, // Convert age to int
@@ -72,6 +86,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
         'contraception': selectedContraception,
         'timestamp': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true)); // Use merge: true to update existing doc without overwriting
+
       print("Data saved successfully!");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Data saved successfully!')),
@@ -135,18 +150,26 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
     );
   }
 
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _boldText = prefs.getBool('boldText') ?? false;
+      _fontSizeScale = prefs.getDouble('fontSizeScale') ?? 1.0;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: const Text('Add Your Data', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+        title:  Text('Add Your Data', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 20 * _fontSizeScale,)),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context);
             },
-            child: const Text('Cancel', style: TextStyle(color: Colors.black54)),
+            child:  Text('Cancel', style: TextStyle(color: Colors.black54, fontSize: 16 * _fontSizeScale,)),
           ),
           const SizedBox(width: 8),
         ],
@@ -178,7 +201,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
                       content: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Age', style: TextStyle(fontSize: 16, color: Colors.black54)),
+                           Text('Age', style: TextStyle(fontSize: 16 * _fontSizeScale, color: Colors.black54)),
                           const SizedBox(height: 8),
                           TextField(
                             controller: ageController,
@@ -196,7 +219,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
                       content: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Symptoms', style: TextStyle(fontSize: 16, color: Colors.black54)),
+                           Text('Symptoms', style: TextStyle(fontSize: 16 * _fontSizeScale, color: Colors.black54)),
                           const SizedBox(height: 8),
                           // user will have to choose symptom based on predefined symptoms using checkboxes
                           ...menstrualCycleSymptoms.map((symptom) {
@@ -232,7 +255,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
                       content: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Type of contraception', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black)),
+                           Text('Type of contraception', style: TextStyle(fontSize: 16 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal, color: Colors.black)),
                           const SizedBox(height: 16),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -264,7 +287,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
                     borderRadius: BorderRadius.circular(30.0),
                   ),
                 ),
-                child: const Text('SUBMIT', style: TextStyle(fontSize: 18, color: Colors.white)),
+                child:  Text('SUBMIT', style: TextStyle(fontSize: 18 * _fontSizeScale, color: Colors.white)),
               ),
             ),
           ],
@@ -351,7 +374,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
             child: Icon(icon, size: 30, color: Colors.pink.shade200),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+          Text(label, style:  TextStyle(fontSize: 12 * _fontSizeScale, color: Colors.black87)),
         ],
       ),
     );
