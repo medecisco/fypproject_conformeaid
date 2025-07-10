@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Keep if other parts of app use it
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +10,7 @@ import 'settings_page.dart';
 import 'calender.dart';
 import 'ManageReminder.dart';
 import 'AddData.dart';
+import 'local_data_manager.dart'; // Import the local data manager
 
 void main() {
   runApp(const MyApp());
@@ -200,8 +201,8 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: 0,
         onTap: (index) async {
           if (index == 1) {
-           await Navigator.pushNamed(context, '/Settings');
-           _loadBoldTextSetting();
+            await Navigator.pushNamed(context, '/Settings');
+            _loadBoldTextSetting();
           }
         },
       ),
@@ -220,7 +221,6 @@ class MenstrualAndPredictionDataDisplay extends StatefulWidget {
 class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredictionDataDisplay> {
   DateTime? predictedStartDate;
   DateTime? predictedEndDate;
-  DateTime? nextPeriod;
   bool isLoading = true;
 
   @override
@@ -230,38 +230,40 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
   }
 
   Future<void> _fetchData() async {
-    String? userId = FirebaseAuth.instance.currentUser?.uid;
+    DateTime now = DateTime.now(); // 'now' is correctly defined here for _fetchData
 
-    if (userId != null) {
-      try {
-        DocumentSnapshot menstrualSnapshot = await FirebaseFirestore.instance
-            .collection('menstrual_data')
-            .doc(userId)
-            .get();
+    try {
+      // Fetch prediction data from local JSON
+      List<Map<String, dynamic>> allPredictions = await LocalDataManager.readPredictions();
 
-        DocumentSnapshot predictionSnapshot = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .collection('predictions')
-            .doc('nextCycle')
-            .get();
+      if (allPredictions.isNotEmpty) {
+        // Sort predictions by start date to ensure consistency, though not strictly needed for current month overlap
+        allPredictions.sort((a, b) => DateTime.parse(a['expectedStart']).compareTo(DateTime.parse(b['expectedStart'])));
 
-        if (menstrualSnapshot.exists) {
-          nextPeriod = menstrualSnapshot['nextPeriod']?.toDate();
+        // Find the prediction that overlaps with the current month
+        DateTime firstDayOfCurrentMonth = DateTime(now.year, now.month, 1);
+        // Get the last day of the current month by getting the 0th day of the next month
+        DateTime lastDayOfCurrentMonth = DateTime(now.year, now.month + 1, 0);
+
+        for (var prediction in allPredictions) {
+          DateTime pStart = DateTime.parse(prediction['expectedStart']);
+          DateTime pEnd = DateTime.parse(prediction['expectedEnd']);
+
+          // Check if the prediction period [pStart, pEnd] overlaps with the current month [firstDayOfCurrentMonth, lastDayOfCurrentMonth]
+          // Overlap condition: (start1 <= end2) AND (end1 >= start2)
+          if ((pStart.isBefore(lastDayOfCurrentMonth) || pStart.isAtSameMomentAs(lastDayOfCurrentMonth)) &&
+              (pEnd.isAfter(firstDayOfCurrentMonth) || pEnd.isAtSameMomentAs(firstDayOfCurrentMonth))) {
+            predictedStartDate = pStart;
+            predictedEndDate = pEnd;
+            break; // Found the current month's prediction, exit loop
+          }
         }
-
-        if (predictionSnapshot.exists) {
-          predictedStartDate = DateTime.parse(predictionSnapshot['expectedStart']);
-          predictedEndDate = DateTime.parse(predictionSnapshot['expectedEnd']);
-        }
-      } catch (e) {
-        print('Error fetching data: $e');
-      } finally {
-        setState(() {
-          isLoading = false;
-        });
+      } else {
+        print("No local prediction data available from JSON.");
       }
-    } else {
+    } catch (e) {
+      print('Error fetching data for HomeScreen from local JSON: $e');
+    } finally {
       setState(() {
         isLoading = false;
       });
@@ -274,7 +276,8 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (nextPeriod == null && predictedStartDate == null) {
+    // Now, we only check predictedStartDate for data availability since nextPeriod is removed
+    if (predictedStartDate == null) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
         decoration: BoxDecoration(
@@ -282,7 +285,7 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
           borderRadius: BorderRadius.circular(10),
         ),
         child: const Text(
-          "No menstrual or prediction data available.",
+          "No prediction data available for the current month.", // More specific message
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 18,
@@ -293,46 +296,13 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
       );
     }
 
+    // Declare 'currentDateTime' locally within the build method, or use DateTime.now() directly
+    // This resolves the 'Undefined name now' error.
+    DateTime currentDateTime = DateTime.now();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (nextPeriod != null) ...[
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFFF5C75E),
-                  Color(0xFFE67A82),
-                ],
-                stops: [0.3, 0.7],
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Your next period is in:",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "${nextPeriod!.difference(DateTime.now()).inDays} days",
-                  style: const TextStyle(fontSize: 20, color: Colors.white),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Date: ${nextPeriod!.toLocal().day}-${nextPeriod!.toLocal().month}-${nextPeriod!.toLocal().year}",
-                  style: const TextStyle(fontSize: 16, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
         if (predictedStartDate != null && predictedEndDate != null) ...[
           Container(
             padding: const EdgeInsets.all(16),
@@ -344,7 +314,7 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "Predicted Start of next period:",
+                  "This month start date:", // Changed text as requested
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
                 ),
                 const SizedBox(height: 8),
@@ -354,12 +324,15 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  "Predicted End of next period:",
+                  "Will end in:", // Changed text as requested
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  predictedEndDate!.toLocal().toString().split(' ')[0], // Display only date
+                  // Use currentDateTime for the calculation
+                  predictedEndDate!.isAfter(currentDateTime)
+                      ? "${predictedEndDate!.difference(currentDateTime).inDays} days"
+                      : predictedEndDate!.toLocal().toString().split(' ')[0], // Display date if already passed
                   style: const TextStyle(fontSize: 20, color: Colors.blue),
                 ),
               ],

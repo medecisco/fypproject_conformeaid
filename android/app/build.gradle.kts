@@ -48,6 +48,7 @@ android {
         implementation("com.google.firebase:firebase-firestore")
         implementation("com.google.firebase:firebase-database:21.0.0")
         implementation("com.google.firebase:firebase-analytics-ktx:22.4.0")
+        implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.12.0")
     }
 }
 
