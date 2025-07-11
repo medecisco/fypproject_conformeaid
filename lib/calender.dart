@@ -24,6 +24,19 @@ class _TimelineScreenState extends State<TimelineScreen> {
   // MODIFIED: List to store multiple prediction periods, each as a list of dates
   List<List<DateTime>> _allPredictionPeriods = [];
 
+  Future<void>_saveUpdatedPredictionDates(DateTime newStart, DateTime newEnd) async {
+    final predictionData = await LocalDataManager.readPredictions();
+
+    if (predictionData == null) return;
+
+    predictionData[0]['expectedStart'] = newStart.toIso8601String();
+    predictionData[0]['expectedEnd'] = newEnd.toIso8601String();
+    predictionData[0]['mensesLength'] = newEnd.difference(newStart).inDays + 1;
+
+    await LocalDataManager.savePredictions(predictionData);
+    await _fetchPredictions();
+  }
+
   // Shared Preferences related state variables
   bool _boldText = false;
   double _fontSizeScale = 1.0;
@@ -47,6 +60,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
       _fontSizeScale = prefs.getDouble('fontSizeScale') ?? 1.0;
     });
   }
+
 
   // Fetch predictions from Local JSON (NOT Firestore anymore, will recommend this for future development)
   Future<void> _fetchPredictions() async {
@@ -209,28 +223,69 @@ class _TimelineScreenState extends State<TimelineScreen> {
         actions: [
           TextButton(
             // Applying font scaling
+            //Didn't start yet button
             child: Text("Didn't Start", style: TextStyle(fontSize: 16 * _fontSizeScale)),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _shiftPrediction(daysToShift: 1); // Shift prediction by 1 day
+              if (_allPredictionPeriods.isNotEmpty && _allPredictionPeriods.first.isNotEmpty) {
+                     final current = _allPredictionPeriods.first;
+                     final updated = current.map((d) => d.add(const Duration(days: 1))).toList();
+                     setState(() {
+                   _allPredictionPeriods[0] = updated; // Shift prediction by 1 day
+                     });
+
+                     await _saveUpdatedPredictionDates(updated.first, updated.last);
+
+                     ScaffoldMessenger.of(context).showSnackBar(
+                       SnackBar(content: Text('Shifted cycle forward by 1 day.', style: TextStyle(fontSize: 14 * _fontSizeScale))),
+                     );
+              }
             },
-          ),
+    ),
           TextButton(
             // Applying font scaling
+            // still bleeding button
             child: Text("Still Bleeding", style: TextStyle(fontSize: 16 * _fontSizeScale)),
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _extendPrediction(daysToExtend: 1); // Extend prediction by 1 day
-            },
-          ),
+              if (_allPredictionPeriods.isNotEmpty && _allPredictionPeriods.first.isNotEmpty) {
+                final current = _allPredictionPeriods.first;
+                final newEnd = current.last.add(const Duration(days: 1));
+                final extended = List<DateTime>.from(current)..add(newEnd);
+
+              setState(() {
+             _allPredictionPeriods[0] = extended; // Extend prediction by 1 day
+          });
+
+            await _saveUpdatedPredictionDates(extended.first, newEnd);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text('Extended bleeding by 1 day.', style: TextStyle(fontSize: 14 * _fontSizeScale))),
+    );
+    }
+    },
+    ),
           // NEW: "Bleeding Has Started" button
           TextButton(
             // Applying font scaling
             child: Text("Bleeding Has Started", style: TextStyle(fontSize: 16 * _fontSizeScale)),
             onPressed: () async {
               Navigator.pop(context);
-              await ActualCycleManager.markBleedingHasStarted(DateTime.now());
-              _fetchPredictions(); // Re-fetch predictions to update the UI with the new cycle start
+              final today = DateTime.now();
+              const mensesLength = 5;
+              final newEnd = today.add(const Duration(days: mensesLength - 1));
+              final newPeriod = List.generate(mensesLength, (i) => today.add(Duration(days: i)));
+
+              setState(() {
+                if (_allPredictionPeriods.isEmpty) {
+                  _allPredictionPeriods.add(newPeriod);
+                } else {
+                  _allPredictionPeriods[0] = newPeriod;
+                }
+              });
+
+              await _saveUpdatedPredictionDates(today, newEnd);
+
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Bleeding start updated!', style: TextStyle(fontSize: 14 * _fontSizeScale))),
               );
