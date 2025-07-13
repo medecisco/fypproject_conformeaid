@@ -68,6 +68,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _boldText = false;
+  // Declare a GlobalKey for MenstrualAndPredictionDataDisplay
+  final GlobalKey<_MenstrualAndPredictionDataDisplayState> _predictionDisplayKey = GlobalKey();
+
 
   @override
   void initState() {
@@ -175,12 +178,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
               const SizedBox(height: 20),
-              const Text(
-                "Next Menstrual Cycle",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+              // Changed this section to include the refresh button 13/7/2025
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Next Menstrual Cycle",
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, color: Colors.black54),
+                    onPressed: () {
+                      // Call the refreshData method on the MenstrualAndPredictionDataDisplayState
+                      _predictionDisplayKey.currentState?.refreshData();
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
-              const MenstrualAndPredictionDataDisplay(), // Consolidated widget
+              // Pass the GlobalKey to the MenstrualAndPredictionDataDisplay widget
+              MenstrualAndPredictionDataDisplay(key: _predictionDisplayKey),
             ],
           ),
         ),
@@ -211,6 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class MenstrualAndPredictionDataDisplay extends StatefulWidget {
+  // Add key to the constructor
   const MenstrualAndPredictionDataDisplay({super.key});
 
   @override
@@ -226,6 +244,16 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
   @override
   void initState() {
     super.initState();
+    _fetchData();
+  }
+
+  // Public method to be called by the parent widget
+  void refreshData() {
+    setState(() {
+      isLoading = true; // Show loading indicator during refresh
+      predictedStartDate = null; // Clear previous data
+      predictedEndDate = null;
+    });
     _fetchData();
   }
 
@@ -276,7 +304,6 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
       return const Center(child: CircularProgressIndicator());
     }
 
-    // Now, we only check predictedStartDate for data availability since nextPeriod is removed
     if (predictedStartDate == null) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -285,7 +312,7 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
           borderRadius: BorderRadius.circular(10),
         ),
         child: const Text(
-          "No prediction data available for the current month.", // More specific message
+          "No prediction data available for the current month.",
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 18,
@@ -296,8 +323,6 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
       );
     }
 
-    // Declare 'currentDateTime' locally within the build method, or use DateTime.now() directly
-    // This resolves the 'Undefined name now' error.
     DateTime currentDateTime = DateTime.now();
 
     return Column(
@@ -314,7 +339,7 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "This month start date:", // Changed text as requested
+                  "This month start date:",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
                 ),
                 const SizedBox(height: 8),
@@ -324,12 +349,11 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  "Will end in:", // Changed text as requested
+                  "Will end in:",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  // Use currentDateTime for the calculation
                   predictedEndDate!.isAfter(currentDateTime)
                       ? "${predictedEndDate!.difference(currentDateTime).inDays} days"
                       : predictedEndDate!.toLocal().toString().split(' ')[0], // Display date if already passed
