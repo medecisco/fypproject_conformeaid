@@ -6,6 +6,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'actual_cycle_manager.dart';
 
 class ManageReminderScreen extends StatefulWidget {
   final VoidCallback onNavigateToTimeline;
@@ -31,6 +32,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
     _loadSettings();
     _loadReminderSettings();
     _initializeNotifications();
+    _checkAndPromptContraceptivePreference();
   }
 
   void _initializeNotifications() {
@@ -50,6 +52,44 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
     });
   }
 
+  Future<void> _checkAndPromptContraceptivePreference() async {
+    List<Map<String, dynamic>> cycleEvents = await ActualCycleManager.readActualCycles();
+
+    // Check if the contraceptive info is already set
+    bool hasSetPreference = cycleEvents.any((event) => event['type'] == 'contraceptive');
+
+    if (!hasSetPreference) {
+      await showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Contraceptive Use"),
+          content: const Text("Are you currently taking contraceptive pills?"),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                DateTime currentDate = DateTime.now();
+                await ActualCycleManager.markCycleStart(currentDate); // Marking the start as an event
+                await ActualCycleManager.addContraceptiveInfo(false); // User says 'No'
+                Navigator.of(context).pop();
+              },
+              child: const Text("No"),
+            ),
+            TextButton(
+              onPressed: () async {
+                DateTime currentDate = DateTime.now();
+                await ActualCycleManager.markCycleStart(currentDate); // Marking the start as an event
+                await ActualCycleManager.addContraceptiveInfo(true); // User says 'Yes'
+                Navigator.of(context).pop();
+              },
+              child: const Text("Yes"),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+
   Future<void> _loadReminderSettings() async {
     String? userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
@@ -63,20 +103,24 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
 
     if (doc.exists) {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
       setState(() {
         isReminderEnabled = data['enabled'] ?? false;
+
+        // Instead of directly using TimeOfDay, use hour and minute from the data
         if (data['hour'] != null && data['minute'] != null) {
-          reminderTime = TimeOfDay(
-              hour: data['hour'], minute: data['minute']);
+          reminderTime = TimeOfDay(hour: data['hour'], minute: data['minute']);
         }
       });
     }
   }
 
+
   Future<void> _saveReminderSettings() async {
     String? userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
+    // Save to Firebase
     await FirebaseFirestore.instance
         .collection('users')
         .doc(userId)
@@ -84,51 +128,66 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
         .doc('reminder')
         .set({
       'enabled': isReminderEnabled,
-      'hour': reminderTime.hour,
-      'minute': reminderTime.minute,
+      'hour': reminderTime.hour, // Store hour
+      'minute': reminderTime.minute, // Store minute
     });
+
+    // Save to JSON
+    await ActualCycleManager.addReminderInfo(reminderTime, isReminderEnabled);
   }
 
   Future<void> _scheduleNotification() async {
-    await flutterLocalNotificationsPlugin.cancelAll(); // Cancel existing
+    List<Map<String, dynamic>> cycleEvents = await ActualCycleManager.readActualCycles();
 
-    if (!isReminderEnabled) return;
-
-    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
-    tz.TZDateTime scheduledDate = tz.TZDateTime(
-      tz.local,
-      now.year,
-      now.month,
-      now.day,
-      reminderTime.hour,
-      reminderTime.minute,
+    // Get contraceptive decision
+    final contraceptiveEvent = cycleEvents.firstWhere(
+          (event) => event['type'] == 'contraceptive',
+      orElse: () => {'usesContraceptive': false},
     );
 
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    bool usesContraceptive = contraceptiveEvent['usesContraceptive'];
+
+    if (usesContraceptive) {
+      // Calculate cycle lengths from historical cycle data
+      List<double> cycleLengths = ActualCycleManager.calculateHistoricalCycleLengths(cycleEvents, 3);
+
+      // Get the last cycle start date and calculate the reminder date
+      DateTime lastCycleStartDate = DateTime.parse(cycleEvents.lastWhere((e) => e['type'] == 'start')['date']);
+
+      // Ensure the reminder does not overlap with menstrual cycle
+      DateTime reminderDate = lastCycleStartDate.add(Duration(days: cycleLengths.last.toInt() + 2)); // Example: 2 days after the period
+
+      // Convert to timezone-aware date for notification scheduling
+      final tzDate = tz.TZDateTime.local(
+        reminderDate.year,
+        reminderDate.month,
+        reminderDate.day,
+        reminderTime.hour,
+        reminderTime.minute,
+      );
+
+      const AndroidNotificationDetails androidPlatformChannelSpecifics =
+      AndroidNotificationDetails(
+        'daily_reminder_channel',
+        'Daily Menstruation Reminder',
+        channelDescription: 'Reminds you about your menstruation cycle daily',
+        importance: Importance.max,
+        priority: Priority.high,
+        ticker: 'ticker',
+      );
+      const NotificationDetails platformChannelSpecifics =
+      NotificationDetails(android: androidPlatformChannelSpecifics);
+
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        0, // Notification ID
+        'Menstruation Reminder',
+        'It\'s time to check your menstruation status!',
+        tzDate,
+        platformChannelSpecifics,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
     }
-
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-    AndroidNotificationDetails(
-      'daily_reminder_channel',
-      'Daily Menstruation Reminder',
-      channelDescription: 'Reminds you about your menstruation cycle daily',
-      importance: Importance.max,
-      priority: Priority.high,
-      ticker: 'ticker',
-    );
-    const NotificationDetails platformChannelSpecifics =
-    NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      0, // Notification ID
-      'Menstruation Reminder',
-      'It\'s time to check your menstruation status!',
-      scheduledDate,
-      platformChannelSpecifics,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
   }
 
   void _toggleReminder(bool value) {
@@ -167,17 +226,19 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        // BACK BUTTON
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.grey),
           onPressed: () {
-            // Navigate to '/Homepage'
             Navigator.pushNamed(context, '/Homepage');
           },
         ),
-        title:  Text(
+        title: Text(
           'Reminder',
-          style: TextStyle(color: Colors.black, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal, fontSize: 20 * _fontSizeScale,),
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: _boldText ? FontWeight.bold : FontWeight.normal,
+            fontSize: 20 * _fontSizeScale,
+          ),
         ),
         centerTitle: true,
       ),
@@ -186,10 +247,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF5C75E),
-              Color(0xFFE67A82),
-            ],
+            colors: [Color(0xFFF5C75E), Color(0xFFE67A82)],
             stops: [0.3, 0.7],
           ),
         ),
@@ -212,14 +270,16 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
                         children: [
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children:  [
+                            children: [
                               Text(
                                 'Daily Reminders',
                                 style: TextStyle(
-                                    fontSize: 18 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal),
+                                  fontSize: 18 * _fontSizeScale,
+                                  fontWeight: _boldText ? FontWeight.bold : FontWeight.normal,
+                                ),
                               ),
                               SizedBox(height: 4),
-                              Text('Reminders to check your status', style: TextStyle(fontSize: 14 * _fontSizeScale),),
+                              Text('Reminders to check your status', style: TextStyle(fontSize: 14 * _fontSizeScale)),
                             ],
                           ),
                           Switch(
@@ -233,17 +293,18 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                         Text(
+                          Text(
                             'Time',
                             style: TextStyle(
-                                fontSize: 18 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal),
+                              fontSize: 18 * _fontSizeScale,
+                              fontWeight: _boldText ? FontWeight.bold : FontWeight.normal,
+                            ),
                           ),
                           TextButton(
                             onPressed: _selectTime,
                             child: Text(
                               timeLabel,
-                              style: TextStyle(
-                                  fontSize: 18 * _fontSizeScale, color: Colors.pink.shade200),
+                              style: TextStyle(fontSize: 18 * _fontSizeScale, color: Colors.pink.shade200),
                             ),
                           ),
                         ],
@@ -268,16 +329,21 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
           children: <Widget>[
             TextButton.icon(
               onPressed: widget.onNavigateToTimeline,
-              icon:  Icon(Icons.calendar_month, size: 24 * _fontSizeScale,),
-              label:  Text('Timeline', style: TextStyle(fontSize: 14 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal),),
+              icon: Icon(Icons.calendar_month, size: 24 * _fontSizeScale),
+              label: Text(
+                'Timeline',
+                style: TextStyle(fontSize: 14 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal),
+              ),
               style: TextButton.styleFrom(foregroundColor: Colors.grey),
             ),
             TextButton.icon(
               onPressed: () {},
-              icon:  Icon(Icons.notifications, size: 24 * _fontSizeScale,),
-              label: Text('Reminder', style: TextStyle(fontSize: 14 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal),),
-              style: TextButton.styleFrom(
-                  foregroundColor: Colors.pink.shade200), // Active color
+              icon: Icon(Icons.notifications, size: 24 * _fontSizeScale),
+              label: Text(
+                'Reminder',
+                style: TextStyle(fontSize: 14 * _fontSizeScale, fontWeight: _boldText ? FontWeight.bold : FontWeight.normal),
+              ),
+              style: TextButton.styleFrom(foregroundColor: Colors.pink.shade200),
             ),
           ],
         ),

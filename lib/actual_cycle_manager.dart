@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ActualCycleManager {
@@ -40,6 +41,50 @@ class ActualCycleManager {
       return [];
     }
   }
+
+  // New method to add contraceptive info in cycle events
+  static Future<void> addContraceptiveInfo(bool usesContraceptive) async {
+    final newEntry = {'date': DateTime.now().toIso8601String(), 'type': 'contraceptive', 'usesContraceptive': usesContraceptive};
+    List<Map<String, dynamic>> existingCycles = await readActualCycles();
+
+    // Check for duplicates to avoid adding the same event again
+    bool isDuplicate = existingCycles.any((e) =>
+    e['date'] == newEntry['date'] && e['type'] == newEntry['type']);
+
+    if (!isDuplicate) {
+      existingCycles.add(newEntry);
+      await _writeActualCycles(existingCycles);
+      print("Saved contraceptive info: $usesContraceptive");
+    } else {
+      print("Duplicate contraceptive event. Not saving.");
+    }
+  }
+
+
+  // New method to add reminder info (time and enabled status)
+  static Future<void> addReminderInfo(TimeOfDay reminderTime, bool isReminderEnabled) async {
+    final reminderEntry = {
+      'type': 'reminder',
+      'enabled': isReminderEnabled,
+      'hour': reminderTime.hour, // Store the hour as an integer
+      'minute': reminderTime.minute, // Store the minute as an integer
+    };
+
+    List<Map<String, dynamic>> existingCycles = await readActualCycles();
+
+    // Check for duplicates to avoid adding the same reminder again
+    bool isDuplicate = existingCycles.any((e) =>
+    e['type'] == 'reminder' && e['hour'] == reminderEntry['hour'] && e['minute'] == reminderEntry['minute']);
+
+    if (!isDuplicate) {
+      existingCycles.add(reminderEntry);
+      await _writeActualCycles(existingCycles);
+      print("Saved reminder info: $reminderEntry");
+    } else {
+      print("Duplicate reminder event. Not saving.");
+    }
+  }
+
 
   // Internal helper to save a list of cycle events to the file.
   // This method now expects the *complete and unique* list to be saved.

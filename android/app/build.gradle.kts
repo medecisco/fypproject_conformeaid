@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.fypproject"  // Keep only one namespace
+    namespace = "com.example.fypproject"
     compileSdk = 35  // Upgraded to API 35
 
     ndkVersion = flutter.ndkVersion
@@ -43,12 +43,12 @@ android {
     dependencies {
         coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
         implementation("androidx.core:core-ktx:1.16.0")
-        implementation(platform("com.google.firebase:firebase-bom:33.13.0"))
+        implementation(platform("com.google.firebase:firebase-bom:33.16.0"))
         implementation("com.google.firebase:firebase-auth")
         implementation("com.google.firebase:firebase-firestore")
         implementation("com.google.firebase:firebase-database:21.0.0")
-        implementation("com.google.firebase:firebase-analytics-ktx:22.4.0")
-        implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.12.0")
+        implementation("com.google.firebase:firebase-analytics-ktx:22.5.0")
+        implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1")
     }
 }
 
