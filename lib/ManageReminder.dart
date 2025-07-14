@@ -41,6 +41,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
     });
   }
 
+
   Future<void> _checkAndPromptContraceptivePreference() async {
     List<Map<String, dynamic>> cycleEvents = await ActualCycleManager.readActualCycles();
 
