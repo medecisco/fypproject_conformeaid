@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // Estimate the height of the fixed header Row including its top padding
     // 48.0 is a common height for an IconButton/Text, + 20.0 padding
     const double fixedHeaderTotalHeight = kToolbarHeight; // Use kToolbarHeight for standard app bar height
-    // Or, if you want a custom fixed height based on current padding and content:
+    // Or, a custom fixed height based on current padding and content:
     // const double fixedHeaderHeight = 24.0 + (48.0); // fontSize + approx icon/text height + 20.0 padding
     // So, total fixed height will be statusBarHeight + 20.0 (top padding) + the height of the row content itself.
     // Let's use an approximate height for the row for calculation purposes.

@@ -4,22 +4,96 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
 class ActualCycleManager {
-  static const String _fileName = 'actual_cycles.json';
+  static const String _cycleEventsFileName = 'actual_cycles.json';
+  static const String _userProfileFileName = 'user_profile.json'; // New file for user profile data
 
-  static Future<String> get _localPath async {
+  // Define the default structure for the user_profile.json file
+  static Map<String, dynamic> _defaultUserProfileDataStructure() {
+    return {
+      'age': null, // Stored as int or null
+      'uses_contraceptive': false,
+      'reminder_settings': {
+        'enabled': false,
+        'hour': 8,
+        'minute': 0,
+      },
+      'ui_settings': {
+        'bold_text': false,
+        'font_size_scale': 1.0,
+      },
+    };
+  }
+
+
+  static Future<File> _getUserProfileFile() async {
     final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
+    return File('${directory.path}/$_userProfileFileName');
   }
 
-  static Future<File> get _localFile async {
-    final path = await _localPath;
-    return File('$path/$_fileName');
+  static Future<File> get _getCycleEventsFile async {
+    final directory = await getApplicationDocumentsDirectory();
+    return File('${directory.path}/$_cycleEventsFileName');
   }
+
+  // --- Core Read/Write Operations for USER PROFILE JSON ---
+  static Future<Map<String, dynamic>> _readUserProfileData() async {
+    try {
+      final file = await _getUserProfileFile();
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final decoded = json.decode(content);
+        final mergedData = _defaultUserProfileDataStructure();
+        if (decoded is Map<String, dynamic>) {
+          _deepMergeMaps(mergedData, decoded);
+        }
+        return mergedData;
+      }
+    } catch (e) {
+      print("Error reading user profile data file: $e");
+    }
+    return _defaultUserProfileDataStructure(); // Return default if file doesn't exist or error
+  }
+
+  static Future<void> _writeUserProfileData(Map<String, dynamic> data) async {
+    try {
+      final file = await _getUserProfileFile();
+      final encoded = json.encode(data);
+      await file.writeAsString(encoded);
+    } catch (e) {
+      print("Error writing user profile data file: $e");
+    }
+  }
+
+  // --- Helper for deep merging maps (important for merging default structure with loaded data)
+  static void _deepMergeMaps(Map<String, dynamic> target, Map<String, dynamic> source) {
+    source.forEach((key, value) {
+      if (target.containsKey(key) && target[key] is Map && value is Map) {
+        // FIXED: Explicitly cast to Map<String, dynamic> for recursive calls
+        _deepMergeMaps(target[key] as Map<String, dynamic>, value as Map<String, dynamic>);
+      } else {
+        target[key] = value;
+      }
+    });
+  }
+
+  // --- UI Settings Management (using user_profile.json) ---
+  static Future<Map<String, dynamic>> readUiSettings() async {
+    final data = await _readUserProfileData();
+    return Map<String, dynamic>.from(data['ui_settings'] ?? {});
+  }
+
+  static Future<void> saveUiSettings(bool boldText, double fontSizeScale) async {
+    final data = await _readUserProfileData();
+    data['ui_settings']['bold_text'] = boldText;
+    data['ui_settings']['font_size_scale'] = fontSizeScale;
+    await _writeUserProfileData(data);
+  }
+
 
   // Reads all recorded cycle events, ensuring they are sorted by date.
   static Future<List<Map<String, dynamic>>> readActualCycles() async {
     try {
-      final file = await _localFile;
+      final file = await _getCycleEventsFile;
       if (!await file.exists()) {
         return [];
       }
@@ -42,54 +116,10 @@ class ActualCycleManager {
     }
   }
 
-  // New method to add contraceptive info in cycle events
-  static Future<void> addContraceptiveInfo(bool usesContraceptive) async {
-    final newEntry = {'date': DateTime.now().toIso8601String(), 'type': 'contraceptive', 'usesContraceptive': usesContraceptive};
-    List<Map<String, dynamic>> existingCycles = await readActualCycles();
-
-    // Check for duplicates to avoid adding the same event again
-    bool isDuplicate = existingCycles.any((e) =>
-    e['date'] == newEntry['date'] && e['type'] == newEntry['type']);
-
-    if (!isDuplicate) {
-      existingCycles.add(newEntry);
-      await _writeActualCycles(existingCycles);
-      print("Saved contraceptive info: $usesContraceptive");
-    } else {
-      print("Duplicate contraceptive event. Not saving.");
-    }
-  }
-
-
-  // New method to add reminder info (time and enabled status)
-  static Future<void> addReminderInfo(TimeOfDay reminderTime, bool isReminderEnabled) async {
-    final reminderEntry = {
-      'type': 'reminder',
-      'enabled': isReminderEnabled,
-      'hour': reminderTime.hour, // Store the hour as an integer
-      'minute': reminderTime.minute, // Store the minute as an integer
-    };
-
-    List<Map<String, dynamic>> existingCycles = await readActualCycles();
-
-    // Check for duplicates to avoid adding the same reminder again
-    bool isDuplicate = existingCycles.any((e) =>
-    e['type'] == 'reminder' && e['hour'] == reminderEntry['hour'] && e['minute'] == reminderEntry['minute']);
-
-    if (!isDuplicate) {
-      existingCycles.add(reminderEntry);
-      await _writeActualCycles(existingCycles);
-      print("Saved reminder info: $reminderEntry");
-    } else {
-      print("Duplicate reminder event. Not saving.");
-    }
-  }
-
-
   // Internal helper to save a list of cycle events to the file.
   // This method now expects the *complete and unique* list to be saved.
   static Future<void> _writeActualCycles(List<Map<String, dynamic>> cyclesToSave) async {
-    final file = await _localFile;
+    final file = await _getCycleEventsFile;
     // Ensure the list is sorted before saving for consistency
     cyclesToSave.sort((a, b) {
       DateTime dateA = DateTime.parse(a['date']);
@@ -98,6 +128,7 @@ class ActualCycleManager {
     });
     await file.writeAsString(json.encode(cyclesToSave));
   }
+
 
   // Adds a new cycle event (start or end) and handles duplicates.
   static Future<void> _addAndSaveCycleEvent(DateTime date, String type) async {
@@ -166,4 +197,74 @@ class ActualCycleManager {
     }
     return cycleLengths;
   }
+  static Future<void> addContraceptiveInfo(bool usesContraceptive) async {
+    final data = await _readUserProfileData();
+    data['uses_contraceptive'] = usesContraceptive;
+    await _writeUserProfileData(data);
+    print("Saved contraceptive info to user_profile.json: $usesContraceptive");
+  }
+
+  // --- Reminder Info Management (using user_profile.json) ---
+  // This now reads/writes directly to the user_profile.json
+  static Future<Map<String, dynamic>?> readReminderInfo() async {
+    final data = await _readUserProfileData();
+    final reminderSettings = data['reminder_settings'];
+    if (reminderSettings != null) {
+      return {
+        'enabled': reminderSettings['enabled'],
+        'hour': reminderSettings['hour'],
+        'minute': reminderSettings['minute'],
+      };
+    }
+    // Return null only if the 'reminder_settings' key itself is missing,
+    // though _defaultUserProfileDataStructure should prevent this.
+    return null;
+  }
+
+  static Future<void> addReminderInfo(TimeOfDay reminderTime, bool isReminderEnabled) async {
+    final data = await _readUserProfileData();
+    data['reminder_settings'] = {
+      'enabled': isReminderEnabled,
+      'hour': reminderTime.hour,
+      'minute': reminderTime.minute,
+    };
+    await _writeUserProfileData(data);
+    print("Saved reminder info to user_profile.json: $isReminderEnabled, ${reminderTime.hour}:${reminderTime.minute}");
+  }
+
+// --- User Age Management (using user_profile.json) ---
+  static Future<void> saveUserAge(int age) async {
+    final data = await _readUserProfileData();
+    data['age'] = age;
+    await _writeUserProfileData(data);
+  }
+
+  static Future<int?> getUserAge() async {
+    final data = await _readUserProfileData();
+    final ageValue = data['age'];
+    if (ageValue != null && ageValue is int) {
+      return ageValue;
+    }
+    return null;
+  }
+
+// --- Approximate Cycle Length (uses direct age from user_profile.json) ---
+  static int calculateApproximateCycleLength(int age) {
+    if (age < 20) {
+      return 30; // Rounded from 30.3
+    } else if (age >= 20 && age <= 34) {
+      return 28; // Common average for prime age of menstrual cycle
+    } else if (age >= 35 && age <= 39) {
+      return 29; // Rounded from 28.7
+    } else if (age >= 40 && age <= 44) {
+      return 28; // Rounded from 28.2
+    } else if (age >= 45 && age <= 49) {
+      return 28; // Rounded from 28.4
+    } else if (age >= 50) {
+      return 31; // Rounded from 30.8
+    } else {
+      return 28; // Default for invalid/unmatched age
+    }
+  }
+
 }

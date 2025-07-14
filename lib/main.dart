@@ -9,10 +9,13 @@ import 'Register.dart';
 import 'calender.dart';
 import 'model.dart'; // Import the model.dart file
 import 'settings_page.dart';
-
+import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Import for notifications
+import 'services/notification_service.dart';// Import for notification service
+import 'package:flutter/material.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await notificationService.init();
   await Firebase.initializeApp();
   tz.initializeTimeZones();
   runApp(const ConformeAidApp());
