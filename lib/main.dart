@@ -15,9 +15,9 @@ import 'package:flutter/material.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  tz.initializeTimeZones();
   await notificationService.init();
   await Firebase.initializeApp();
-  tz.initializeTimeZones();
   runApp(const ConformeAidApp());
 }
 

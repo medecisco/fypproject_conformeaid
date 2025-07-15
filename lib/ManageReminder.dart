@@ -59,8 +59,8 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
               onPressed: () async {
                 DateTime currentDate = DateTime.now();
                 await ActualCycleManager.addContraceptiveInfo(false); // User says 'No'
-                Navigator.of(context).pop();
-                Navigator.pushNamed(context, '/Homepage');
+                Navigator.of(context).pop(); // Close the dialog
+                Navigator.pushNamed(context, '/Homepage'); // Navigate to Homepage
               },
               child: const Text("No"),
             ),
@@ -68,7 +68,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
               onPressed: () async {
                 DateTime currentDate = DateTime.now();
                 await ActualCycleManager.addContraceptiveInfo(true); // User says 'Yes'
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // Just close the dialog if 'Yes'
               },
               child: const Text("Yes"),
             ),
@@ -111,8 +111,8 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
       await _scheduleNotification();
     } else {
       // Cancel both persistent and scheduled daily reminder
-      await notificationService.cancelReminderStatusNotification(); // Fixed: Use cancelReminderStatusNotification
-      await notificationService.cancelNotification(NotificationService.reminderNotificationId);// Cancels scheduled daily
+      await notificationService.cancelReminderStatusNotification();
+      await notificationService.cancelNotification(NotificationService.reminderNotificationId);
       print("All reminders cancelled.");
     }
 
@@ -125,14 +125,14 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
 // New method to control the persistent reminder notification
   void _updatePersistentReminderNotification(bool enabled, TimeOfDay time) {
     if (enabled) {
-      notificationService.showReminderStatusNotification( // Fixed: Use showReminderStatusNotification
+      notificationService.showReminderStatusNotification(
         title: 'ConformeAid Reminder Active',
         body: 'Daily reminder set for ${time.format(context)}',
         payload: 'reminder_active',
       );
       print("Persistent reminder notification shown.");
     } else {
-      notificationService.cancelReminderStatusNotification(); // Fixed: Use cancelReminderStatusNotification
+      notificationService.cancelReminderStatusNotification();
       print("Persistent reminder notification cancelled.");
     }
   }
@@ -141,12 +141,14 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
 
 
   Future<void> _scheduleNotification() async {
-
+    // This ensures consistency with the timezone configured in NotificationService.
+    // However, it's typically set once in main.dart. Calling it here might be redundant
+    // but ensures the local location is set if for some reason it wasn't earlier.
     tz.setLocalLocation(tz.getLocation(tz.local.name));
 
     List<Map<String, dynamic>> cycleEvents = await ActualCycleManager.readActualCycles();
 
-
+    // Get contraceptive decision
     final contraceptiveEvent = cycleEvents.firstWhere(
           (event) => event['type'] == 'contraceptive',
       orElse: () => {'usesContraceptive': false}, // Default if not found
@@ -165,18 +167,17 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
         notificationBody = 'It\'s time to check your menstruation status!';
       }
 
-      // Schedule the daily reminder using the notification service
-      // The `notificationService.scheduleDailyReminder` method will handle
+      // Schedule the daily reminder using the notification service.
+      // The `notificationService.scheduleDailyReminder` method now handles
       // calculating the next suitable time and setting it to repeat daily
       // based on the provided hour and minute.
       await notificationService.scheduleDailyReminder(
         id: NotificationService.reminderNotificationId, // Using centralized notification ID
         title: 'ConformeAid Reminder',
-        body: notificationBody,
-        hour: reminderTime.hour,
-        minute: reminderTime.minute,
+        body: notificationBody, // Use the dynamically determined body
+        hour: reminderTime.hour, // Pass hour directly
+        minute: reminderTime.minute, // Pass minute directly
         payload: 'scheduled_daily_reminder',
-
       );
       print('Daily reminder scheduled for ${reminderTime.format(context)}');
     } else {
