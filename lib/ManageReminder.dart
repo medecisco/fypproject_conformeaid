@@ -60,6 +60,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
                 DateTime currentDate = DateTime.now();
                 await ActualCycleManager.addContraceptiveInfo(false); // User says 'No'
                 Navigator.of(context).pop();
+                Navigator.pushNamed(context, '/Homepage');
               },
               child: const Text("No"),
             ),
@@ -99,39 +100,39 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
   }
 
 
-Future<void> _saveReminderSettings() async {
-  // Save exclusively to local JSON using ActualCycleManager
-  await ActualCycleManager.addReminderInfo(reminderTime, isReminderEnabled);
-  print("Saved reminder settings to JSON: Enabled: $isReminderEnabled, Time: ${reminderTime.format(context)}");
+  Future<void> _saveReminderSettings() async {
+    // Save exclusively to local JSON using ActualCycleManager
+    await ActualCycleManager.addReminderInfo(reminderTime, isReminderEnabled);
+    print("Saved reminder settings to JSON: Enabled: $isReminderEnabled, Time: ${reminderTime.format(context)}");
 
-  // Update the persistent notification and schedule the daily notification
-  _updatePersistentReminderNotification(isReminderEnabled, reminderTime);
-  if (isReminderEnabled) {
-    await _scheduleNotification();
-  } else {
-    // Cancel both persistent and scheduled daily reminder
-    await notificationService.cancelReminderNotification(); // Cancels persistent (app status)
-    await notificationService.cancelNotification(NotificationService.reminderNotificationId);// Cancels scheduled daily
-    print("All reminders cancelled.");
+    // Update the persistent notification and schedule the daily notification
+    _updatePersistentReminderNotification(isReminderEnabled, reminderTime);
+    if (isReminderEnabled) {
+      await _scheduleNotification();
+    } else {
+      // Cancel both persistent and scheduled daily reminder
+      await notificationService.cancelReminderStatusNotification(); // Fixed: Use cancelReminderStatusNotification
+      await notificationService.cancelNotification(NotificationService.reminderNotificationId);// Cancels scheduled daily
+      print("All reminders cancelled.");
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Reminder settings saved!')),
+    );
   }
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Reminder settings saved!')),
-  );
-}
 
 
 // New method to control the persistent reminder notification
   void _updatePersistentReminderNotification(bool enabled, TimeOfDay time) {
     if (enabled) {
-      notificationService.showReminderNotification(
+      notificationService.showReminderStatusNotification( // Fixed: Use showReminderStatusNotification
         title: 'ConformeAid Reminder Active',
         body: 'Daily reminder set for ${time.format(context)}',
         payload: 'reminder_active',
       );
       print("Persistent reminder notification shown.");
     } else {
-      notificationService.cancelReminderNotification();
+      notificationService.cancelReminderStatusNotification(); // Fixed: Use cancelReminderStatusNotification
       print("Persistent reminder notification cancelled.");
     }
   }
@@ -140,12 +141,12 @@ Future<void> _saveReminderSettings() async {
 
 
   Future<void> _scheduleNotification() async {
-    // This ensures consistency with the timezone configured in NotificationService.
+
     tz.setLocalLocation(tz.getLocation(tz.local.name));
 
     List<Map<String, dynamic>> cycleEvents = await ActualCycleManager.readActualCycles();
 
-    // Get contraceptive decision
+
     final contraceptiveEvent = cycleEvents.firstWhere(
           (event) => event['type'] == 'contraceptive',
       orElse: () => {'usesContraceptive': false}, // Default if not found
@@ -156,76 +157,28 @@ Future<void> _saveReminderSettings() async {
     await notificationService.cancelNotification(NotificationService.reminderNotificationId);
 
     if (isReminderEnabled) { // Only schedule if reminder is enabled
-      // Calculate cycle lengths from historical cycle data
-      List<double> cycleLengths = ActualCycleManager.calculateHistoricalCycleLengths(cycleEvents, 3);
-      double averageCycleLength = cycleLengths.isNotEmpty
-          ? cycleLengths.reduce((a, b) => a + b) / cycleLengths.length
-          : 28.0; // Default average if no data
-
-      DateTime? lastCycleStartDate;
-      try {
-        lastCycleStartDate = DateTime.parse(cycleEvents.lastWhere((e) => e['type'] == 'start')['date']);
-      } catch (e) {
-        print("No 'start' event found in cycle history or error parsing date: $e");
-        // Fallback: If no start date, base it on current date for first reminder
-        lastCycleStartDate = DateTime.now().subtract(Duration(days: averageCycleLength.toInt()));
-      }
-
-      DateTime reminderDate;
+      // Determine the notification body based on contraceptive use
+      String notificationBody;
       if (usesContraceptive) {
-        // If on contraceptive, perhaps remind daily (e.g., for pill reminder)
-        // This is a placeholder; refine logic for specific contraceptive needs
-        reminderDate = DateTime.now(); // For daily reminder at the set time
+        notificationBody = 'It\'s time for your daily contraceptive reminder!';
       } else {
-        // Remind based on predicted cycle (e.g., 2 days before next period)
-        reminderDate = lastCycleStartDate.add(Duration(days: averageCycleLength.toInt() - 2));
-
-        // Ensure the reminder date is in the future or today
-        if (reminderDate.isBefore(DateTime.now())) {
-          reminderDate = reminderDate.add(Duration(days: averageCycleLength.toInt())); // Schedule for next cycle
-          if (reminderDate.isBefore(DateTime.now())) { // If still in past, set for tomorrow
-            reminderDate = DateTime.now().add(const Duration(days: 1));
-          }
-        }
+        notificationBody = 'It\'s time to check your menstruation status!';
       }
 
-      // Construct TZDateTime for the scheduled notification
-      final tzDate = tz.TZDateTime.local(
-        reminderDate.year,
-        reminderDate.month,
-        reminderDate.day,
-        reminderTime.hour,
-        reminderTime.minute,
-      );
-
-      // Ensure the scheduled time is in the future for today, or tomorrow
-      tz.TZDateTime scheduledDateTime;
-      if (tzDate.isBefore(tz.TZDateTime.now(tz.local))) {
-        scheduledDateTime = tzDate.add(const Duration(days: 1)); // Schedule for tomorrow
-      } else {
-        scheduledDateTime = tzDate; // Schedule for today
-      }
-
-      const AndroidNotificationDetails androidPlatformChannelSpecifics =
-      AndroidNotificationDetails(
-        NotificationService.reminderChannelId, // Using centralized channel ID
-        NotificationService.reminderChannelName,
-        channelDescription: NotificationService.reminderChannelDescription,
-        importance: Importance.max,
-        priority: Priority.high,
-        ticker: 'Reminder',
-      );
-      const NotificationDetails platformChannelSpecifics =
-      NotificationDetails(android: androidPlatformChannelSpecifics);
-
+      // Schedule the daily reminder using the notification service
+      // The `notificationService.scheduleDailyReminder` method will handle
+      // calculating the next suitable time and setting it to repeat daily
+      // based on the provided hour and minute.
       await notificationService.scheduleDailyReminder(
         id: NotificationService.reminderNotificationId, // Using centralized notification ID
         title: 'ConformeAid Reminder',
-        body: 'It\'s time to check your menstruation status!',
-        scheduledDate: scheduledDateTime, // Pass the adjusted scheduledDateTime as scheduledDate
+        body: notificationBody,
+        hour: reminderTime.hour,
+        minute: reminderTime.minute,
         payload: 'scheduled_daily_reminder',
+
       );
-      print('Daily reminder scheduled for ${scheduledDateTime.toIso8601String()}');
+      print('Daily reminder scheduled for ${reminderTime.format(context)}');
     } else {
       // If reminder is disabled, cancel any scheduled notifications with this ID
       await notificationService.cancelNotification(NotificationService.reminderNotificationId);

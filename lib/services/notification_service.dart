@@ -1,10 +1,15 @@
 // lib/services/notification_service.dart
+import 'dart:io' show Platform; // Required for Platform.isAndroid
+import 'package:flutter/foundation.dart'; // Required for debugPrint
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'package:flutter/material.dart'; // For TimeOfDay, if needed for persistent notification body
-import 'dart:io' show Platform; // Required for Platform.isAndroid check
 
+
+@pragma('vm:entry-point')
+void handleBackgroundNotificationTap(NotificationResponse notificationResponse) {
+  debugPrint('Background notification tapped with payload: ${notificationResponse.payload}');
+}
 
 class NotificationService {
   // Make the plugin instance private to control access
@@ -14,64 +19,63 @@ class NotificationService {
   static const String reminderChannelName = "Menstruation Reminders";
   static const String reminderChannelDescription = "Channel for daily menstruation cycle reminders";
 
-  // You might want a separate channel for the persistent app status notification
+
   static const String appStatusChannelId = "app_status_channel";
   static const String appStatusChannelName = "App Status";
   static const String appStatusChannelDescription = "Persistent notification for app status";
-
 
   // Unique IDs for notifications
   static const int reminderNotificationId = 0; // For the daily scheduled reminder
   static const int appStatusNotificationId = 1; // For the persistent app status notification
 
+  /// Initializes the notification service.
   Future<void> init() async {
-    // IMPORTANT: Initialize time zones ONLY ONCE at the very start of your app (e.g., in main.dart)
-    // The flutter_local_notifications plugin's example often puts it here for simplicity,
-    // but if you call NotificationService.init() from main.dart, this is the right place.
+
     tz.initializeTimeZones();
 
-    // Set the local location for timezone.
-    // For Malaysia, 'Asia/Kuala_Lumpur' is a valid IANA timezone name.
+
     try {
+
       tz.setLocalLocation(tz.getLocation('Asia/Kuala_Lumpur'));
     } catch (e) {
       // Fallback to UTC if the specified timezone isn't found for some reason
-      print("Warning: Could not set timezone to Asia/Kuala_Lumpur. Falling back to UTC. Error: $e");
+      debugPrint("Warning: Could not set timezone to Asia/Kuala_Lumpur. Falling back to UTC. Error: $e");
       tz.setLocalLocation(tz.getLocation('Etc/UTC'));
     }
 
+    // Android initialization settings
     const AndroidInitializationSettings androidInitializationSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+
+
     final InitializationSettings initializationSettings = InitializationSettings(
       android: androidInitializationSettings,
-      // No iOS settings included as per your request
+
     );
 
     await _flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) async {
-        // Handle notification tap here if needed (app is in foreground)
+        // Handle notification tap here when the app is in the foreground
         if (response.payload != null) {
-          debugPrint('notification payload: ${response.payload}');
+          debugPrint('Foreground notification tapped with payload: ${response.payload}');
         }
       },
-      // For handling taps when the app is in the background or terminated
       onDidReceiveBackgroundNotificationResponse: handleBackgroundNotificationTap,
     );
 
     // Create notification channels for Android 8.0 (API 26) and above
-    _createNotificationChannel(reminderChannelId, reminderChannelName, reminderChannelDescription);
-    _createNotificationChannel(appStatusChannelId, appStatusChannelName, appStatusChannelDescription);
+    _createNotificationChannel(reminderChannelId, reminderChannelName, reminderChannelDescription, Importance.max);
+    _createNotificationChannel(appStatusChannelId, appStatusChannelName, appStatusChannelDescription, Importance.low); // Lower importance for persistent status
   }
 
   // Helper method to create notification channels
-  void _createNotificationChannel(String id, String name, String description) async {
+  void _createNotificationChannel(String id, String name, String description, Importance importance) async {
     final AndroidNotificationChannel androidChannel = AndroidNotificationChannel(
       id,
       name,
       description: description,
-      importance: Importance.max, // Max importance for reminders
-      // For app status, you might use Importance.low or .min
-      // For 'appStatusChannelId', consider Importance.low or Importance.min for less intrusive persistent notifications.
+      importance: importance,
+      // playSound: true, // You can control sound here if needed
     );
 
     await _flutterLocalNotificationsPlugin
@@ -94,8 +98,9 @@ class NotificationService {
     return false; // Not an Android platform or implementation not found
   }
 
-  // Method to show a persistent reminder status notification (e.g., "Reminder is ON")
-  Future<void> showReminderNotification({
+  /// Shows a persistent reminder status notification (e.g., "Reminder is ON").
+  /// This notification stays in the notification shade until explicitly cancelled.
+  Future<void> showReminderStatusNotification({
     required String title,
     required String body,
     String? payload,
@@ -113,7 +118,7 @@ class NotificationService {
       visibility: NotificationVisibility.public,
     );
     final NotificationDetails platformChannelSpecifics =
-    NotificationDetails(android: androidPlatformChannelSpecifics);
+    NotificationDetails(android: androidPlatformChannelSpecifics, iOS: const DarwinNotificationDetails()); // Include iOS details
 
     await _flutterLocalNotificationsPlugin.show(
       appStatusNotificationId, // Use a unique ID for the persistent status notification
@@ -124,19 +129,25 @@ class NotificationService {
     );
   }
 
-  // Method to cancel the persistent reminder status notification
-  Future<void> cancelReminderNotification() async {
+  /// Cancels the persistent reminder status notification.
+  Future<void> cancelReminderStatusNotification() async {
     await _flutterLocalNotificationsPlugin.cancel(appStatusNotificationId);
   }
 
-  // Method to schedule a daily reminder
+  /// Schedules a daily reminder notification.
+  /// The notification will repeat daily at the specified time.
   Future<void> scheduleDailyReminder({
     required int id,
     required String title,
     required String body,
-    required tz.TZDateTime scheduledDate,
+    required int hour,
+    required int minute,
     String? payload,
+    String? sound,
   }) async {
+    // Calculate the next scheduled date/time
+    tz.TZDateTime scheduledDate = _nextInstanceOfTime(hour, minute);
+
     final AndroidNotificationDetails androidPlatformChannelSpecifics =
     AndroidNotificationDetails(
       reminderChannelId,
@@ -145,7 +156,10 @@ class NotificationService {
       importance: Importance.max, // High importance for the actual reminder
       priority: Priority.high,
       ticker: 'Reminder',
+      sound: sound != null ? RawResourceAndroidNotificationSound(sound) : null, // Custom sound
     );
+
+
     final NotificationDetails platformChannelSpecifics =
     NotificationDetails(android: androidPlatformChannelSpecifics);
 
@@ -156,26 +170,38 @@ class NotificationService {
       scheduledDate,
       platformChannelSpecifics,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // Request exact alarm if possible
-      // This is crucial: Repeats daily at the same time (hour and minute)
-      matchDateTimeComponents: DateTimeComponents.time,
+      matchDateTimeComponents: DateTimeComponents.time, // Repeats daily at the same time
       payload: payload,
     );
   }
 
-  // Helper method to cancel a specific notification by ID
+  // Helper to get the next instance of a specific time today or tomorrow
+  tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
+    final tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
+  }
+
+  /// Cancels a specific notification by its ID.
   Future<void> cancelNotification(int id) async {
     await _flutterLocalNotificationsPlugin.cancel(id);
   }
+
+  /// Cancels all pending notifications.
+  Future<void> cancelAllNotifications() async {
+    await _flutterLocalNotificationsPlugin.cancelAll();
+  }
 }
 
-// Global instance of NotificationService
+// Global instance of NotificationService for easy access throughout the app
 final NotificationService notificationService = NotificationService();
-
-// A top-level function is required for onDidReceiveBackgroundNotificationResponse
-@pragma('vm:entry-point')
-void handleBackgroundNotificationTap(NotificationResponse notificationResponse) {
-  debugPrint('Background notification tapped with payload: ${notificationResponse.payload}');
-  // Implement your logic here for when a notification is tapped while the app is in the background or terminated.
-  // You cannot directly update UI here. You might use shared preferences to store
-  // navigation information, which can then be read when the app is foregrounded.
-}
