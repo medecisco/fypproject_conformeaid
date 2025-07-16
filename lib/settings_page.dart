@@ -60,7 +60,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
             Navigator.pop(context);
           },
         ),
-        title: const Text('Settings', style: TextStyle(color: Colors.amber)),
+        title: const Text('Settings', style: TextStyle(color: Color(0xFFE67A82))),
         centerTitle: false,
         actions: [],
         bottom: PreferredSize(
@@ -70,9 +70,9 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
             child: TabBar(
               controller: _tabController,
               isScrollable: false,
-              labelColor: Colors.amber,
+              labelColor: Color(0xFFE67A82),
               unselectedLabelColor: Colors.grey,
-              indicatorColor: Colors.amber,
+              indicatorColor: Color(0xFFE67A82),
               tabs: const [
                 Tab(text: 'Sounds & Alerts'),
                 Tab(text: 'Display'),
@@ -97,7 +97,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('APP NOTIFICATIONS', style: TextStyle(color: Colors.amber, fontSize: 13)),
+          const Text('APP NOTIFICATIONS', style: TextStyle(color:Color(0xFFE67A82), fontSize: 13)),
           ListTile(
             title: const Text('Notification Sound'),
             subtitle: Text(_notificationSound),
@@ -120,7 +120,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
             },
           ),
           const Divider(color: Colors.white12, height: 40),
-          const Text('ALARMS', style: TextStyle(color: Colors.amber, fontSize: 13)),
+          const Text('ALARMS', style: TextStyle(color: Color(0xFFE67A82), fontSize: 13)),
           ListTile(
             title: const Text('Alarm Sound'),
             subtitle: Text(_alarmSound),
@@ -161,7 +161,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('FONT SIZE', style: TextStyle(color: Colors.amber, fontSize: 13)),
+          const Text('FONT SIZE', style: TextStyle(color: Color(0xFFE67A82), fontSize: 13)),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: Column(
@@ -207,7 +207,7 @@ class _SettingsPageState extends State<SettingsPage> with SingleTickerProviderSt
           const SizedBox(height: 20),
           const Text(
             'Changes will apply across the app and may require a restart for full effect.',
-            style: TextStyle(color: Colors.amberAccent, fontSize: 12),
+            style: TextStyle(color: Color(0xFFE67A82), fontSize: 12),
           ),
         ],
       ),

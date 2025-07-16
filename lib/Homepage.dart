@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Keep if other parts of app use it
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +11,13 @@ import 'calender.dart';
 import 'ManageReminder.dart';
 import 'AddData.dart';
 import 'local_data_manager.dart'; // Import the local data manager
+
+// Define your app's main color palette for consistency
+const Color kPrimaryColor = Color(0xFFE67A82); // Soft red/pink
+const Color kSecondaryColor = Color(0xFFF5C75E); // Warm yellow/orange
+const Color kLightBackgroundColor = Color(0xFFFFF7F2); // Very light peach/pink for backgrounds
+const Color kDarkTextColor = Color(0xFF333333); // Darker text for readability
+const Color kLightTextColor = Color(0xFF757575); // Lighter text for secondary info
 
 void main() {
   runApp(const MyApp());
@@ -23,11 +30,30 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'ConformeAid',
+      debugShowCheckedModeBanner: false, // Keep debug banner off
       theme: ThemeData(
         fontFamily: GoogleFonts.inter().fontFamily,
-        primarySwatch: Colors.blue,
+        // Use your defined primary color for the overall theme
+        primaryColor: kPrimaryColor,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: kPrimaryColor, // Set seed color to your primary accent
+          primary: kPrimaryColor,
+          secondary: kSecondaryColor,
+          background: kLightBackgroundColor,
+          // Removed 'surface' as it's not for gradients and is not typically a list of colors
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent, // Make app bar background transparent
+          elevation: 0, // No shadow for a flat look
+          iconTheme: IconThemeData(color: kDarkTextColor), // Dark icons
+          titleTextStyle: TextStyle(
+            color: kDarkTextColor,
+            fontSize: 20,
+            fontWeight: FontWeight.bold, // Default app bar title bold
+          ),
+        ),
+        scaffoldBackgroundColor: Colors.transparent, // Set scaffold background to transparent
         visualDensity: VisualDensity.adaptivePlatformDensity,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
       initialRoute: '/LogIn',
@@ -42,9 +68,9 @@ class MyApp extends StatelessWidget {
           onNavigateToProfile: null,
         ),
         '/Settings': (context) => const SettingsPage(),
-        '/calender': (context) => TimelineScreen(onNavigateToReminder: () {  },),
-        '/ManageReminder': (context) => ManageReminderScreen(onNavigateToTimeline: () {  },),
-        '/AddData': (context) => AddYourDataScreen(onSubmit: () {  },),
+        '/calender': (context) => TimelineScreen(onNavigateToReminder: () {}),
+        '/ManageReminder': (context) => ManageReminderScreen(onNavigateToTimeline: () {}),
+        '/AddData': (context) => AddYourDataScreen(onSubmit: () {}),
       },
     );
   }
@@ -68,9 +94,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _boldText = false;
-  // Declare a GlobalKey for MenstrualAndPredictionDataDisplay
   final GlobalKey<_MenstrualAndPredictionDataDisplayState> _predictionDisplayKey = GlobalKey();
-
 
   @override
   void initState() {
@@ -87,10 +111,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const Color primaryColor = Color(0xFFF5C75E);
     const TextStyle bodyTextStyle = TextStyle(
       fontSize: 16,
-      color: Colors.black54,
+      color: kLightTextColor, // Use defined light text color
     );
 
     final List<Map<String, dynamic>> gridItems = [
@@ -116,11 +139,12 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
 
     return Scaffold(
+      // Set Scaffold background to transparent to allow the body's gradient to show through
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
+        // Colors and elevation are set in MyApp's ThemeData for consistency
         leading: IconButton(
-          icon: const Icon(Icons.logout_rounded, color: Colors.black87),
+          icon: const Icon(Icons.logout_rounded, color: kDarkTextColor), // Use defined dark text color
           onPressed: () async {
             await FirebaseAuth.instance.signOut();
             SystemNavigator.pop();
@@ -129,80 +153,128 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(
           "Conforme Aid",
           style: TextStyle(
-            color: Colors.black87,
+            color: kDarkTextColor, // Use defined dark text color
             fontWeight: _boldText ? FontWeight.bold : FontWeight.normal,
+            fontSize: 22, // Slightly larger title for impact
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings, color: kDarkTextColor),
+            onPressed: () async {
+              await Navigator.pushNamed(context, '/Settings');
+              _loadBoldTextSetting(); // Reload settings after returning from settings page
+            },
+          ),
+        ],
       ),
-      backgroundColor: Colors.white,
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              const SizedBox(height: 20),
-              const Text('What do you want to check today?', style: bodyTextStyle),
-              const SizedBox(height: 20),
-              GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
+      // Apply the gradient to the body of the Scaffold
+      body: Container( // This container ensures the gradient fills the available space
+        width: double.infinity, // Ensure it takes full width
+        height: double.infinity, // Ensure it takes full height
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [kLightBackgroundColor, kSecondaryColor, kPrimaryColor], // Your desired gradient colors
+            stops: [0.0, 0.5, 1.0], // Optional: control where each color begins and ends
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20.0), // Increased padding for better breathing room
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const SizedBox(height: 20),
+                Text(
+                  'What do you want to check today?',
+                  style: bodyTextStyle.copyWith(
+                    fontSize: 18, // Slightly larger for prominence
+                    fontWeight: _boldText ? FontWeight.bold : FontWeight.w600, // Make it bold if setting enabled
+                    color: kDarkTextColor, // Make it darker
+                  ),
                 ),
-                itemCount: gridItems.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemBuilder: (context, index) {
-                  final item = gridItems[index];
-                  return GestureDetector(
-                    onTap: item['onTap'],
-                    child: Column(
-                      children: <Widget>[
-                        Icon(
-                          item['icon'],
-                          size: 40,
-                          color: primaryColor,
+                const SizedBox(height: 25), // Increased spacing
+                GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 12, // Increased spacing
+                    mainAxisSpacing: 12, // Increased spacing
+                    childAspectRatio: 0.9, // Adjust aspect ratio for better fit
+                  ),
+                  itemCount: gridItems.length,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemBuilder: (context, index) {
+                    final item = gridItems[index];
+                    return GestureDetector(
+                      onTap: item['onTap'],
+                      child: Card( // Use Card for a nice elevated look
+                        elevation: 4, // Subtle shadow
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15), // Rounded corners
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          item['title']!,
-                          style: const TextStyle(fontSize: 12),
-                          textAlign: TextAlign.center,
+                        color: Colors.white, // White background for grid items
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: <Widget>[
+                              Icon(
+                                item['icon'],
+                                size: 45, // Slightly larger icon
+                                color: kPrimaryColor, // Use primary color
+                              ),
+                              const SizedBox(height: 10), // Increased spacing
+                              Text(
+                                item['title']!,
+                                style: TextStyle(
+                                  fontSize: 14, // Slightly larger text
+                                  fontWeight: _boldText ? FontWeight.bold : FontWeight.w500, // Make text bold if setting enabled
+                                  color: kDarkTextColor,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
                         ),
-                      ],
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 40), // Increased spacing before next section
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Next Menstrual Cycle",
+                      style: TextStyle(
+                        fontSize: 22, // Adjusted font size
+                        fontWeight: _boldText ? FontWeight.bold : FontWeight.w600,
+                        color: kDarkTextColor,
+                      ),
                     ),
-
-                  );
-                },
-              ),
-              const SizedBox(height: 20),
-              // Changed this section to include the refresh button 13/7/2025
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Next Menstrual Cycle",
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, color: Colors.black54),
-                    onPressed: () {
-                      // Call the refreshData method on the MenstrualAndPredictionDataDisplayState
-                      _predictionDisplayKey.currentState?.refreshData();
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              // Pass the GlobalKey to the MenstrualAndPredictionDataDisplay widget
-              MenstrualAndPredictionDataDisplay(key: _predictionDisplayKey),
-            ],
+                    IconButton(
+                      icon: const Icon(Icons.refresh, color: kLightTextColor), // Use lighter text color for icon
+                      onPressed: () {
+                        _predictionDisplayKey.currentState?.refreshData();
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15), // Increased spacing
+                // Pass the GlobalKey to the MenstrualAndPredictionDataDisplay widget
+                MenstrualAndPredictionDataDisplay(key: _predictionDisplayKey),
+              ],
+            ),
           ),
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white, // White background for the bar
+        elevation: 8, // Subtle shadow for depth
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -213,13 +285,13 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Settings',
           ),
         ],
-        selectedItemColor: primaryColor,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: kPrimaryColor, // Use primary color for selected item
+        unselectedItemColor: kLightTextColor, // Use lighter text color for unselected
         currentIndex: 0,
         onTap: (index) async {
           if (index == 1) {
             await Navigator.pushNamed(context, '/Settings');
-            _loadBoldTextSetting();
+            _loadBoldTextSetting(); // Reload bold text setting after returning
           }
         },
       ),
@@ -228,7 +300,6 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class MenstrualAndPredictionDataDisplay extends StatefulWidget {
-  // Add key to the constructor
   const MenstrualAndPredictionDataDisplay({super.key});
 
   @override
@@ -247,43 +318,37 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
     _fetchData();
   }
 
-  // Public method to be called by the parent widget
   void refreshData() {
     setState(() {
-      isLoading = true; // Show loading indicator during refresh
-      predictedStartDate = null; // Clear previous data
+      isLoading = true;
+      predictedStartDate = null;
       predictedEndDate = null;
     });
     _fetchData();
   }
 
   Future<void> _fetchData() async {
-    DateTime now = DateTime.now(); // 'now' is correctly defined here for _fetchData
+    DateTime now = DateTime.now();
 
     try {
-      // Fetch prediction data from local JSON
       List<Map<String, dynamic>> allPredictions = await LocalDataManager.readPredictions();
 
       if (allPredictions.isNotEmpty) {
-        // Sort predictions by start date to ensure consistency, though not strictly needed for current month overlap
-        allPredictions.sort((a, b) => DateTime.parse(a['expectedStart']).compareTo(DateTime.parse(b['expectedStart'])));
+        allPredictions.sort((a, b) =>
+            DateTime.parse(a['expectedStart']).compareTo(DateTime.parse(b['expectedStart'])));
 
-        // Find the prediction that overlaps with the current month
         DateTime firstDayOfCurrentMonth = DateTime(now.year, now.month, 1);
-        // Get the last day of the current month by getting the 0th day of the next month
         DateTime lastDayOfCurrentMonth = DateTime(now.year, now.month + 1, 0);
 
         for (var prediction in allPredictions) {
           DateTime pStart = DateTime.parse(prediction['expectedStart']);
           DateTime pEnd = DateTime.parse(prediction['expectedEnd']);
 
-          // Check if the prediction period [pStart, pEnd] overlaps with the current month [firstDayOfCurrentMonth, lastDayOfCurrentMonth]
-          // Overlap condition: (start1 <= end2) AND (end1 >= start2)
           if ((pStart.isBefore(lastDayOfCurrentMonth) || pStart.isAtSameMomentAs(lastDayOfCurrentMonth)) &&
               (pEnd.isAfter(firstDayOfCurrentMonth) || pEnd.isAtSameMomentAs(firstDayOfCurrentMonth))) {
             predictedStartDate = pStart;
             predictedEndDate = pEnd;
-            break; // Found the current month's prediction, exit loop
+            break;
           }
         }
       } else {
@@ -301,23 +366,24 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: kPrimaryColor)); // Consistent loading color
     }
 
     if (predictedStartDate == null) {
       return Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20), // More padding
         decoration: BoxDecoration(
-          color: Colors.redAccent.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
+          color: kSecondaryColor.withOpacity(0.2), // Use secondary color for "no data" alert
+          borderRadius: BorderRadius.circular(15), // Rounded corners
+          border: Border.all(color: kSecondaryColor, width: 1.5), // Subtle border
         ),
-        child: const Text(
-          "No prediction data available for the current month.",
+        child: Text(
+          "No prediction data available for the current month. Please add cycle history in your Profile.",
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.red,
+            fontSize: 16, // Adjusted font size
+            fontWeight: FontWeight.w600, // Medium bold
+            color: kDarkTextColor, // Consistent text color
           ),
         ),
       );
@@ -328,41 +394,59 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (predictedStartDate != null && predictedEndDate != null) ...[
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blueAccent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "This month start date:",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  predictedStartDate!.toLocal().toString().split(' ')[0], // Display only date
-                  style: const TextStyle(fontSize: 20, color: Colors.blue),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Will end in:",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  predictedEndDate!.isAfter(currentDateTime)
-                      ? "${predictedEndDate!.difference(currentDateTime).inDays} days"
-                      : predictedEndDate!.toLocal().toString().split(' ')[0], // Display date if already passed
-                  style: const TextStyle(fontSize: 20, color: Colors.blue),
-                ),
-              ],
-            ),
+        Container(
+          padding: const EdgeInsets.all(20), // Increased padding
+          decoration: BoxDecoration(
+            color: Colors.white, // White background for the card
+            borderRadius: BorderRadius.circular(15), // Rounded corners
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1), // Subtle shadow
+                spreadRadius: 2,
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "This month's start date:",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: kDarkTextColor.withOpacity(0.8), // Slightly muted bold text
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "${predictedStartDate!.day} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][predictedStartDate!.month - 1]} ${predictedStartDate!.year}",
+                style: TextStyle(fontSize: 20, color: kPrimaryColor, fontWeight: FontWeight.bold), // Prominent date
+              ),
+              const SizedBox(height: 15), // More spacing
+              Text(
+                "Expected end date:",
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: kDarkTextColor.withOpacity(0.8),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                predictedEndDate!.isAfter(currentDateTime)
+                    ? "${predictedEndDate!.difference(currentDateTime).inDays} days left" // More descriptive text
+                    : "${predictedEndDate!.day} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][predictedEndDate!.month - 1]} ${predictedEndDate!.year} (Ended)", // Display date if already passed
+                style: TextStyle(
+                  fontSize: 20,
+                  color: predictedEndDate!.isAfter(currentDateTime) ? kPrimaryColor : kLightTextColor, // Color based on status
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
