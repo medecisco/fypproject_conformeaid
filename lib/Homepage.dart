@@ -1,3 +1,4 @@
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -120,7 +121,9 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Timeline',
         'icon': Icons.calendar_month,
-        'onTap': widget.onNavigateToTimeline,
+        'onTap': () async {
+          await Navigator.pushNamed(context, '/calendar');
+        },
       },
       {
         'title': 'Reminder',
@@ -371,6 +374,7 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
 
     if (predictedStartDate == null) {
       return Container(
+        width: double.infinity, // Added to make it stretch
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20), // More padding
         decoration: BoxDecoration(
           color: kSecondaryColor.withOpacity(0.2), // Use secondary color for "no data" alert
@@ -395,6 +399,7 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
+          width: double.infinity, // Added to make it stretch
           padding: const EdgeInsets.all(20), // Increased padding
           decoration: BoxDecoration(
             color: Colors.white, // White background for the card
