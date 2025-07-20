@@ -118,13 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final double statusBarHeight = MediaQuery.of(context).padding.top;
-    // Estimate the height of the fixed header Row including its top padding
-    // 48.0 is a common height for an IconButton/Text, + 20.0 padding
     const double fixedHeaderTotalHeight = kToolbarHeight; // Use kToolbarHeight for standard app bar height
-    // Or, a custom fixed height based on current padding and content:
-    // const double fixedHeaderHeight = 24.0 + (48.0); // fontSize + approx icon/text height + 20.0 padding
-    // So, total fixed height will be statusBarHeight + 20.0 (top padding) + the height of the row content itself.
-    // Let's use an approximate height for the row for calculation purposes.
     const double rowContentHeight = 48.0; // Standard height for IconButton/Text in a row
     final double totalFixedHeaderArea = statusBarHeight + 20.0 + rowContentHeight;
 
@@ -148,20 +142,14 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         child: Stack(
           children: [
-            // 1. Scrollable content area (avatar, inputs, buttons)
             Positioned.fill(
-              // The content starts below the fixed header area
               top: totalFixedHeaderArea,
               child: SingleChildScrollView(
-                // Apply horizontal padding here for the scrollable content
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    // This SizedBox now provides the space *below* the fixed header.
-                    // It effectively acts as the 'original' 100.0 space that was
-                    // below the header before it became fixed.
                     const SizedBox(height: 100.0),
                     CircleAvatar(
                       radius: 60.0,
@@ -234,21 +222,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    // Add padding at the bottom to ensure content above keyboard is visible and scrollable
                     SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? MediaQuery.of(context).viewInsets.bottom + 20 : 20),
                   ],
                 ),
               ),
             ),
 
-            // 2. Fixed Header (x button and Login text)
+
             Positioned(
               top: statusBarHeight + 20.0, // Top padding for the header to match Register screen level
               left: 16.0, // Horizontal padding for the header to match scrollable content
               right: 16.0,
-              // The height property is not strictly necessary here as the row will size itself,
-              // but can be added for clarity if desired.
-              // height: fixedHeaderHeight,
               child: Row(
                 children: [
                   IconButton(

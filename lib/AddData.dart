@@ -44,7 +44,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
   List<String> selectedSymptoms = [];
   String selectedContraception = '';
 
-  // MODIFIED: List to hold multiple HistoricalPeriodEntry objects
+  // List to hold multiple HistoricalPeriodEntry objects
   List<HistoricalPeriodEntry> _historicalPeriodEntries = [];
   final int maxHistoricalInputs = 10; // Allow up to 10 months of data
 

@@ -69,7 +69,7 @@ class MyApp extends StatelessWidget {
           onNavigateToProfile: null,
         ),
         '/Settings': (context) => const SettingsPage(),
-        '/calender': (context) => TimelineScreen(onNavigateToReminder: () {}),
+        '/calendar': (context) => TimelineScreen(onNavigateToReminder: () {}),
         '/ManageReminder': (context) => ManageReminderScreen(onNavigateToTimeline: () {}),
         '/AddData': (context) => AddYourDataScreen(onSubmit: () {}),
       },
@@ -340,25 +340,55 @@ class _MenstrualAndPredictionDataDisplayState extends State<MenstrualAndPredicti
         allPredictions.sort((a, b) =>
             DateTime.parse(a['expectedStart']).compareTo(DateTime.parse(b['expectedStart'])));
 
-        DateTime firstDayOfCurrentMonth = DateTime(now.year, now.month, 1);
-        DateTime lastDayOfCurrentMonth = DateTime(now.year, now.month + 1, 0);
+        // --- Logic to find the most relevant upcoming or ongoing prediction ---
+        DateTime? foundStartDate;
+        DateTime? foundEndDate;
 
         for (var prediction in allPredictions) {
           DateTime pStart = DateTime.parse(prediction['expectedStart']);
           DateTime pEnd = DateTime.parse(prediction['expectedEnd']);
 
-          if ((pStart.isBefore(lastDayOfCurrentMonth) || pStart.isAtSameMomentAs(lastDayOfCurrentMonth)) &&
-              (pEnd.isAfter(firstDayOfCurrentMonth) || pEnd.isAtSameMomentAs(firstDayOfCurrentMonth))) {
-            predictedStartDate = pStart;
-            predictedEndDate = pEnd;
-            break;
+          // If the prediction's end date is after the current time, it's relevant
+          if (pEnd.isAfter(now)) {
+            foundStartDate = pStart;
+            foundEndDate = pEnd;
+            break; // Found the first relevant future/ongoing prediction, which we want to display
           }
         }
+
+        // --- Handle "stuck" date: if the found prediction is too old ---
+        // If a prediction was found AND its end date + 5 days is in the past
+        if (foundEndDate != null && now.isAfter(foundEndDate.add(const Duration(days: 5)))) {
+          // This means the currently found prediction is "stuck" or outdated.
+          // We need to find the next prediction that starts after this 5-day threshold.
+          DateTime thresholdDate = foundEndDate.add(const Duration(days: 5));
+          foundStartDate = null; // Reset to find a newer prediction
+          foundEndDate = null;
+
+          for (var prediction in allPredictions) {
+            DateTime pStart = DateTime.parse(prediction['expectedStart']);
+            DateTime pEnd = DateTime.parse(prediction['expectedEnd']);
+
+            if (pStart.isAfter(thresholdDate)) {
+              foundStartDate = pStart;
+              foundEndDate = pEnd;
+              break; // Found the truly next relevant cycle
+            }
+          }
+        }
+
+        predictedStartDate = foundStartDate;
+        predictedEndDate = foundEndDate;
+
       } else {
         print("No local prediction data available from JSON.");
+        predictedStartDate = null;
+        predictedEndDate = null;
       }
     } catch (e) {
       print('Error fetching data for HomeScreen from local JSON: $e');
+      predictedStartDate = null;
+      predictedEndDate = null;
     } finally {
       setState(() {
         isLoading = false;
