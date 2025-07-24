@@ -500,14 +500,15 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                     ),
                                     // Show a red dot for predicted dates (if needed, and not selected/today)
                                     if (isPredictionDay && !(isSelected || isToday))
-                                      Positioned(
-                                        bottom: 2,
+                                      Positioned.fill(
+                                        child: Center(
                                         child: Container(
-                                          width: 6 * _fontSizeScale,
-                                          height: 6 * _fontSizeScale,
+                                          width: 35 * _fontSizeScale,
+                                          height: 35 * _fontSizeScale,
                                           decoration: const BoxDecoration(
-                                            color: Colors.red,
+                                            color: Color.fromRGBO(244, 67, 54, 0.5),
                                             shape: BoxShape.circle,
+                                          ),
                                           ),
                                         ),
                                       ),
