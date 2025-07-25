@@ -479,11 +479,11 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                 child: Stack(
                                   alignment: Alignment.center,
                                   children: [
-                                    // Draw the background circle for selected or today (MODIFIED to match UI image)
+                                    // Draw the background circle for selected or today
                                     if (isSelected || isToday)
                                       Container(
-                                        width: 35 * _fontSizeScale,
-                                        height: 35 * _fontSizeScale,
+                                        width: (35 * _fontSizeScale).roundToDouble(),
+                                        height: (35 * _fontSizeScale).roundToDouble(),
                                         decoration: BoxDecoration(
                                           color: isSelected ? Colors.deepPurple.shade400 : Colors.blue.shade600, // Purple for selected, blue for today (if not selected)
                                           shape: BoxShape.circle,
