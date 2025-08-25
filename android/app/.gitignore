@@ -1,2 +1,4 @@
 ###Ignoring google key###
+android/app/src/
 google-services.json
+
