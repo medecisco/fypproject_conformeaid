@@ -38,7 +38,7 @@ class LocalDataManager {
       return jsonList.map((item) => item as Map<String, dynamic>).toList();
     } catch (e) {
       print("Error reading prediction data: $e");
-      // If there's an error (e.g., malformed JSON), return an empty list
+      // If there's an error, return an empty list
       return [];
     }
   }
