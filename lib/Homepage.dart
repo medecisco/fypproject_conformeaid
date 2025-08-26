@@ -13,7 +13,7 @@ import 'ManageReminder.dart';
 import 'AddData.dart';
 import 'local_data_manager.dart'; // Import the local data manager
 
-// Define your app's main color palette for consistency
+// Define app's main color palette for consistency
 const Color kPrimaryColor = Color(0xFFE67A82); // Soft red/pink
 const Color kSecondaryColor = Color(0xFFF5C75E); // Warm yellow/orange
 const Color kLightBackgroundColor = Color(0xFFFFF7F2); // Very light peach/pink for backgrounds
@@ -34,7 +34,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false, // Keep debug banner off
       theme: ThemeData(
         fontFamily: GoogleFonts.inter().fontFamily,
-        // Use your defined primary color for the overall theme
+        // Use defined primary color for the overall theme
         primaryColor: kPrimaryColor,
         colorScheme: ColorScheme.fromSeed(
           seedColor: kPrimaryColor, // Set seed color to your primary accent
@@ -180,8 +180,8 @@ class _HomeScreenState extends State<HomeScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [kLightBackgroundColor, kSecondaryColor, kPrimaryColor], // Your desired gradient colors
-            stops: [0.0, 0.5, 1.0], // Optional: control where each color begins and ends
+            colors: [kLightBackgroundColor, kSecondaryColor, kPrimaryColor], 
+            stops: [0.0, 0.5, 1.0], //set where color start and end
           ),
         ),
         child: Padding(
@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   'What do you want to check today?',
                   style: bodyTextStyle.copyWith(
                     fontSize: 18, // Slightly larger for prominence
-                    fontWeight: _boldText ? FontWeight.bold : FontWeight.w600, // Make it bold if setting enabled
+                    fontWeight: _boldText ? FontWeight.bold : FontWeight.w600, // Make it bold if setting enabled (added to recommendation)
                     color: kDarkTextColor, // Make it darker
                   ),
                 ),
