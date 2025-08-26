@@ -7,7 +7,7 @@ import 'LogIn.dart';
 import 'ManageReminder.dart';
 import 'Register.dart';
 import 'calender.dart';
-import 'model.dart'; // Import the model.dart file
+import 'model.dart'; 
 import 'settings_page.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart'; // Import for notifications
 import 'services/notification_service.dart';// Import for notification service
@@ -29,7 +29,7 @@ class ConformeAidApp extends StatefulWidget {
 }
 
 class _ConformeAidAppState extends State<ConformeAidApp> {
-  final Model _model = Model();  // Create an instance of your model
+  final Model _model = Model();  
 
   @override
   void initState() {
@@ -38,7 +38,7 @@ class _ConformeAidAppState extends State<ConformeAidApp> {
   }
 
   Future<void> _loadModel() async {
-    await _model.loadModel();  // Load the model when the app starts
+    await _model.loadModel();  
     print('Model Loaded');
   }
 
