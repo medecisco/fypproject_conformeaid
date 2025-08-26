@@ -9,7 +9,7 @@ import 'local_data_manager.dart'; // Import the local data manager for predictio
 import 'actual_cycle_manager.dart'; // Import the actual cycle data manager
 import 'package:intl/intl.dart'; // For date formatting
 
-// NEW: Custom class to hold historical period start and end dates
+//  Custom class to hold historical period start and end dates
 class HistoricalPeriodEntry {
   TextEditingController startController;
   TextEditingController endController;
@@ -166,7 +166,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
     });
   }
 
-  // This method saves user input (age, symptoms, contraception) to Firebase
+  // This method saves user input (age, symptoms, contraception) to Firebase (no longer in use for app activity data, all app activity data stored in local json)
   Future<void> _saveUserInputToFirebase() async {
     print("Firebase Save: Starting save process.");
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -264,7 +264,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
     });
   }
 
-  // NEW: Method to calculate average cycle length from historical data
+  //  Method to calculate average cycle length from historical data
   double _calculateAverageCycleLength(List<HistoricalPeriodEntry> entries) {
     if (entries.length < 2) {
       return _ruleBasedPredictedCycleLength.toDouble(); // Fallback to rule-based if not enough data
@@ -289,7 +289,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
     return cycleLengths.reduce((a, b) => a + b) / cycleLengths.length;
   }
 
-  // NEW: Method to calculate average menses length from historical data
+  // Method to calculate average menses length from historical data
   double _calculateAverageMensesLength(List<HistoricalPeriodEntry> entries) {
     List<double> mensesLengths = [];
     for (var entry in entries) {
@@ -308,7 +308,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
   }
 
 
-  // NEW: This method will run predictions and save them locally
+  //This method will run predictions and save them locally
   Future<void> _runPredictionAndSaveLocally() async {
     print("AddYourDataScreen: --- Starting _runPredictionAndSaveLocally ---");
 
@@ -440,7 +440,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(context); // This will take you back
+              Navigator.pop(context); 
             },
             child: Text('Cancel', style: TextStyle(color: Colors.black54, fontSize: 16 * _fontSizeScale,)),
           ),
@@ -531,7 +531,7 @@ class _AddYourDataScreenState extends State<AddYourDataScreen> {
                             int index = entry.key;
                             HistoricalPeriodEntry periodEntry = entry.value;
                             return Padding(
-                              padding: const EdgeInsets.only(bottom: 12.0), // Added more space between entries
+                              padding: const EdgeInsets.only(bottom: 12.0), 
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
