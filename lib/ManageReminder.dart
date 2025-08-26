@@ -122,7 +122,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
   }
 
 
-// New method to control the persistent reminder notification
+// method to control the persistent reminder notification
   void _updatePersistentReminderNotification(bool enabled, TimeOfDay time) {
     if (enabled) {
       notificationService.showReminderStatusNotification(
@@ -141,9 +141,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
 
 
   Future<void> _scheduleNotification() async {
-    // This ensures consistency with the timezone configured in NotificationService.
-    // However, it's typically set once in main.dart. Calling it here might be redundant
-    // but ensures the local location is set if for some reason it wasn't earlier.
+    // This ensures consistency with the timezone configured in NotificationService. I know that it is preferable to configure in main but this work the best for me
     tz.setLocalLocation(tz.getLocation(tz.local.name));
 
     List<Map<String, dynamic>> cycleEvents = await ActualCycleManager.readActualCycles();
@@ -170,7 +168,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
       // Schedule the daily reminder using the notification service.
       // The `notificationService.scheduleDailyReminder` method now handles
       // calculating the next suitable time and setting it to repeat daily
-      // based on the provided hour and minute.
+      // based on the user provided hour and minute.
       await notificationService.scheduleDailyReminder(
         id: NotificationService.reminderNotificationId, // Using centralized notification ID
         title: 'ConformeAid Reminder',
@@ -194,7 +192,6 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
     if (value) {
       // Request exact alarm permission specifically for Android
       // This will prompt the user to grant the "Alarms & reminders" permission
-      // if they are on Android 12+ and haven't granted it yet.
       final bool? granted = await notificationService.requestExactAlarmPermission();
       if (granted == false) {
         print("Exact alarm permission was denied. Scheduled notifications may not work reliably.");
@@ -203,7 +200,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
         );
       }
     }
-    _saveReminderSettings(); // This handles saving and notification updates
+    _saveReminderSettings(); 
   }
 
   Future<void> _selectTime() async {
@@ -215,7 +212,7 @@ class _ManageReminderScreenState extends State<ManageReminderScreen> {
       setState(() {
         reminderTime = picked;
       });
-      _saveReminderSettings(); // This handles saving and notification updates
+      _saveReminderSettings(); 
     }
   }
 
