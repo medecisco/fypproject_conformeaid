@@ -1,3 +1,4 @@
+//this part is a functional mockup every function that are mention in this page has been put in the report recommendation for future development
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
