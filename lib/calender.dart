@@ -48,7 +48,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSettings(); // NEW: Load user settings
+    _loadSettings(); // Load user settings
     _fetchPredictions(); // Fetch prediction data when the screen is loaded
   }
 
@@ -109,7 +109,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     print("TimelineScreen: --- Finished _fetchPredictions ---"); // DEBUG
   }
 
-  // Shifting the prediction window (e.g., moving start and end dates by a few days)
+  // Shifting the prediction window ( moving start and end dates by a few days)
   // This now updates LOCAL JSON, not Firestore.
   // This method will now primarily adjust the *first* predicted cycle and re-save all predictions.
   Future<void> _shiftPrediction({required int daysToShift}) async {
@@ -149,7 +149,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     // Re-fetch and update local state to reflect changes on UI
     await _fetchPredictions();
 
-    // Optional: Save adjustment history to Firestore if you want a cloud log of changes
+    //  Save adjustment history to Firestore if you want a cloud log of changes
     await _saveAdjustmentHistory(
       actionType: 'Shifted Prediction (Local)',
       oldStart: oldStart,
@@ -198,7 +198,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     // Re-fetch and update local state to reflect changes on UI
     await _fetchPredictions();
 
-    // Optional: Save adjustment history to Firestore if you want a cloud log of changes
+    // Save adjustment history to Firestore if you want a cloud log of changes
     await _saveAdjustmentHistory(
       actionType: 'Extended Prediction (Local)',
       oldStart: oldStart,
@@ -265,7 +265,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     }
     },
     ),
-          // NEW: "Bleeding Has Started" button
+          //  "Bleeding Has Started" button
           TextButton(
             // Applying font scaling
             child: Text("Bleeding Has Started", style: TextStyle(fontSize: 16 * _fontSizeScale)),
@@ -296,7 +296,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     );
   }
 
-  // Save the history of adjustments (shifted or extended cycle) to Firebase (optional, for logging)
+  // Save the history of adjustments (shifted or extended cycle) to Firebase (for logging)
   Future<void> _saveAdjustmentHistory({
     required String actionType,
     required DateTime oldStart,
@@ -327,7 +327,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
   }
 
   // Helper function to build day name text with consistent style
-  // NEW: Updated to use _boldText and _fontSizeScale
+  //  Updated to use _boldText and _fontSizeScale
   Widget _buildDayLabel(String day) {
     return Text(
       day,
@@ -465,7 +465,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
                             final DateTime date = DateTime(_currentYear, _currentMonth, day);
                             final bool isToday = _isSameDay(date, DateTime.now());
                             final bool isSelected = _isSameDay(date, _selectedDay);
-                            // MODIFIED: Check if the date is part of *any* predicted period
+                            // Check if the date is part of *any* predicted period
                             final bool isPredictionDay = _allPredictionPeriods.any((period) =>
                                 period.any((predictedDate) => _isSameDay(date, predictedDate)));
 
