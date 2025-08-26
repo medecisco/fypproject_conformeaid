@@ -52,7 +52,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
     _fetchPredictions(); // Fetch prediction data when the screen is loaded
   }
 
-  // NEW: Load user preferences for UI customizations like bold text and font size scaling
+  //  Load user preferences for UI customizations like bold text and font size scaling
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -140,9 +140,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
       currentPredictions[0]['predictedMensesLength'] = newEnd.difference(newStart).inDays + 1; // +1 to include both start and end days
     }
 
-    // For simplicity, we'll re-save the potentially modified list.
-    // A more advanced approach would recalculate all subsequent predictions based on this shift.
-    // For now, we only update the first predicted cycle in the saved list.
+   
     await LocalDataManager.savePredictions(currentPredictions);
     print("First prediction shifted and saved locally: Start: $newStart, End: $newEnd");
 
