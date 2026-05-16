@@ -1,2 +1,4 @@
 Add initial content to Flashback-Content.txt for project notes.
   just to remember my first Ai-intergrated full-stack development project
+
+update just to try get yolo batch
